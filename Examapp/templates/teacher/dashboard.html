@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Teacher Dashboard{% endblock %}
+{% block content %}
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <h2>Teacher Dashboard</h2>
+        <a href="{% url 'create_exam' %}" class="btn">+ Create New Exam</a>
+    </div>
+    <hr>
+    {% if exams %}
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Duration</th>
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th>Total Marks</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for exam in exams %}
+            <tr>
+                <td><strong>{{ exam.title }}</strong></td>
+                <td>{{ exam.duration_minutes }} min</td>
+                <td>{{ exam.start_time|date:"M d, Y H:i" }}</td>
+                <td>{{ exam.end_time|date:"M d, Y H:i" }}</td>
+                <td>{{ exam.total_marks }}</td>
+                <td>
+                    {% if exam.is_published %}
+                        <span class="badge badge-success">Published</span>
+                    {% else %}
+                        <span class="badge badge-warning">Draft</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'edit_exam' exam.id %}" class="btn btn-warning" style="padding:0.3rem 0.7rem; font-size:0.85rem;">✏️ Edit</a>
+                    <a href="{% url 'add_questions' exam.id %}" class="btn btn-secondary" style="padding:0.3rem 0.7rem; font-size:0.85rem;">Questions</a>
+                    <a href="{% url 'assign_students' exam.id %}" class="btn" style="padding:0.3rem 0.7rem; font-size:0.85rem;">Assign</a>
+                    <a href="{% url 'exam_results' exam.id %}" class="btn btn-success" style="padding:0.3rem 0.7rem; font-size:0.85rem;">Results</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="text-align:center; color:#7f8c8d; margin:2rem 0;">No exams yet. <a href="{% url 'create_exam' %}" style="color:#667eea;">Create your first exam</a>.</p>
+    {% endif %}
+</div>
+{% endblock %}

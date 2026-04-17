@@ -1,0 +1,541 @@
+{% extends 'base.html' %}
+{% block title %}Add Questions - {{ exam.title }}{% endblock %}
+{% block extra_css %}
+<style>
+    .q-block { background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; padding:1.25rem; margin-bottom:1rem; position:relative; }
+    .q-block-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
+    .q-block-header h4 { margin:0; color:#2c3e50; }
+    .q-block .remove-btn { background:#e74c3c; color:white; border:none; border-radius:4px; padding:0.25rem 0.6rem; cursor:pointer; font-size:0.8rem; }
+    .q-block .remove-btn:hover { background:#c0392b; }
+    .choice-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.4rem; }
+    .choice-row input[type="text"] { flex:1; }
+    .choice-row .del-choice { background:none; border:none; color:#e74c3c; font-size:1.1rem; cursor:pointer; padding:0 0.25rem; }
+    .type-section { margin-top:0.75rem; }
+    .existing-q { background:#fff; border-radius:6px; padding:1rem; margin-bottom:0.75rem; border-left:4px solid #667eea; }
+    .testcase-row { background:#f0f4ff; border:1px solid #c5cae9; border-radius:6px; padding:0.75rem; margin-bottom:0.6rem; }
+    .coding-note { background:#e8f5e9; border-left:3px solid #27ae60; padding:0.6rem 0.85rem; font-size:0.82rem; color:#2d6a4f; border-radius:0 4px 4px 0; margin-top:0.5rem; }
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .add-choice-btn { background:none; border:1px dashed #95a5a6; color:#7f8c8d; border-radius:4px; padding:0.3rem 0.7rem; cursor:pointer; font-size:0.82rem; margin-top:0.25rem; }
+    .add-choice-btn:hover { background:#ecf0f1; }
+    .q-block.coding-block { border-left:4px solid #1a6b3a; background:#f0fff4; }
+    .coding-block .q-block-header h4::before { content:'\1F4BB  '; }
+    .sticky-bar { position:sticky; top:0; z-index:10; background:white; border-bottom:1px solid #ecf0f1; padding:0.75rem 0; margin-bottom:1.5rem; display:flex; gap:0.75rem; flex-wrap:wrap; }
+    /* Modal */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000; align-items:center; justify-content:center; }
+    .modal-overlay.show { display:flex; }
+    .modal-box { background:white; border-radius:10px; padding:2rem; width:90%; max-width:720px; max-height:90vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.25); }
+    .modal-box h3 { margin-bottom:0.5rem; color:#2c3e50; }
+    .modal-box .format-hint { background:#f8f9fa; border-radius:6px; padding:0.85rem 1rem; font-size:0.82rem; color:#555; font-family:monospace; margin-bottom:1rem; line-height:1.7; white-space:pre; overflow-x:auto; }
+    .modal-box textarea { width:100%; min-height:280px; padding:0.75rem; border:1px solid #bdc3c7; border-radius:6px; font-size:0.9rem; font-family:monospace; resize:vertical; }
+    .modal-footer { display:flex; gap:0.75rem; justify-content:flex-end; margin-top:1rem; flex-wrap:wrap; }
+    #parse-result { font-size:0.88rem; margin-top:0.5rem; min-height:1.2em; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:0.5rem;">
+        <h2>Add Questions — {{ exam.title }}</h2>
+        <a href="{% url 'teacher_dashboard' %}" class="btn btn-secondary">← Dashboard</a>
+    </div>
+    <hr>
+
+    <form method="post" id="bulk-form">
+        {% csrf_token %}
+
+        <div class="sticky-bar">
+            <button type="button" onclick="addQuestion()" class="btn" style="background:#667eea;">+ Add MCQ / Short Answer</button>
+            <button type="button" onclick="addCodingQuestion()" class="btn" style="background:#1a6b3a;">&#128187; + Add Coding Question (C)</button>
+            <button type="button" onclick="openBulkModal()" class="btn" style="background:#8e44ad;">📋 Bulk Paste MCQs</button>
+            <button type="submit" name="action" value="save_more" class="btn btn-success">💾 Save All Questions</button>
+            <button type="submit" name="action" value="save_assign" class="btn" style="background:#e67e22;">Save &amp; Assign Students →</button>
+        </div>
+
+        <div id="questions-container"></div>
+
+        <div id="empty-hint" style="text-align:center; padding:2rem; color:#95a5a6; border:2px dashed #dee2e6; border-radius:8px;">
+            Click <strong>"+ Add Question"</strong> above to start adding questions.
+        </div>
+    </form>
+
+    <!-- Saved Questions -->
+    <hr>
+    <h3 style="margin-bottom:1rem;">Saved Questions ({{ questions|length }})</h3>
+    {% if questions %}
+        {% for q in questions %}
+        <div class="existing-q">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap;">
+                <strong>Q{{ forloop.counter }}: {{ q.question_text }}</strong>
+                <div style="display:flex; gap:0.5rem; align-items:center; white-space:nowrap;">
+                    <span class="badge badge-info">{{ q.marks }} mark{% if q.marks != 1 %}s{% endif %}</span>
+                    <span class="badge badge-warning">{{ q.get_question_type_display }}</span>
+                </div>
+            </div>
+            {% if q.choices.exists %}
+            <ul style="margin-top:0.5rem; padding-left:1.25rem;">
+                {% for c in q.choices.all %}
+                <li style="{% if c.is_correct %}color:#27ae60; font-weight:600;{% endif %}">
+                    {{ c.choice_text }}{% if c.is_correct %} ✓{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% if q.question_type == 'coding' %}
+            <div style="margin-top:0.5rem;">
+                {% for tc in q.test_cases.all %}
+                <span style="display:inline-block; background:{% if tc.is_hidden %}#fff3cd{% else %}#d4edda{% endif %}; border-radius:4px; padding:0.2rem 0.5rem; font-size:0.78rem; margin:2px;">
+                    TC{{ forloop.counter }}: {{ tc.marks }}m {% if tc.is_hidden %}🔒 hidden{% else %}👁 visible{% endif %}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <p style="color:#7f8c8d;">No questions saved yet.</p>
+    {% endif %}
+</div>
+
+<!-- Verify Coding Modal -->
+<div class="modal-overlay" id="verify-modal" onclick="closeVerifyModal(event)">
+  <div class="modal-box" style="max-width:700px;">
+    <h3>&#9654; Verify Test Cases with Reference Code</h3>
+    <p style="color:#7f8c8d; font-size:0.88rem; margin-bottom:0.6rem;">Paste a correct C solution below and run it against all test cases to confirm expected outputs are right.</p>
+    <textarea id="verify-code-area" style="width:100%; min-height:180px; font-family:monospace; font-size:0.85rem; padding:0.6rem; border:1px solid #bdc3c7; border-radius:4px; resize:vertical;">#include &lt;stdio.h&gt;
+
+int main() {
+    // paste your reference solution here
+    return 0;
+}</textarea>
+    <div id="verify-results" style="margin-top:0.8rem;"></div>
+    <div class="modal-footer">
+      <button type="button" onclick="closeVerifyModal()" class="btn btn-secondary">Close</button>
+      <button type="button" onclick="runVerify()" class="btn" style="background:#1a6b3a;">&#9654; Run All Test Cases</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Paste Modal -->
+<div class="modal-overlay" id="bulk-modal" onclick="closeBulkModal(event)">
+  <div class="modal-box">
+    <h3>📋 Bulk Paste MCQs</h3>
+    <p style="color:#7f8c8d; margin-bottom:0.75rem; font-size:0.9rem;">Paste your questions below. Supported formats:</p>
+    <div class="format-hint">1. Which planet is closest to the Sun?
+A) Earth
+B) Mercury
+C) Venus
+D) Mars
+Answer: B
+
+2. What is 2 + 2?
+a. 3
+b. 4
+c. 5
+d. 6
+Ans: b</div>
+    <textarea id="bulk-textarea" placeholder="Paste all your MCQs here..."></textarea>
+    <div id="parse-result"></div>
+    <div class="modal-footer">
+      <button type="button" onclick="closeBulkModal()" class="btn btn-secondary">Cancel</button>
+      <button type="button" onclick="importBulk()" class="btn" style="background:#8e44ad;">Import Questions</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let qCount = 0;
+
+function addQuestion() {
+    const idx = qCount++;
+    document.getElementById('empty-hint').style.display = 'none';
+    const container = document.getElementById('questions-container');
+
+    const div = document.createElement('div');
+    div.className = 'q-block';
+    div.id = 'qblock-' + idx;
+    div.innerHTML = `
+        <div class="q-block-header">
+            <h4>Question ${container.children.length + 1}</h4>
+            <button type="button" class="remove-btn" onclick="removeQuestion('qblock-${idx}')">✕ Remove</button>
+        </div>
+        <div class="form-group">
+            <label>Question Text</label>
+            <textarea name="q${idx}_text" required placeholder="Enter question..." style="min-height:80px; width:100%; padding:0.6rem; border:1px solid #bdc3c7; border-radius:4px; font-family:inherit;"></textarea>
+        </div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label>Type</label>
+                <select name="q${idx}_type" onchange="switchType(this, ${idx})" style="width:100%; padding:0.6rem; border:1px solid #bdc3c7; border-radius:4px;">
+                    <option value="mcq">Multiple Choice (MCQ)</option>
+                    <option value="true_false">True / False</option>
+                    <option value="short_answer">Short Answer</option>
+                    <option value="coding">&#128187; Coding (C Language)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Marks</label>
+                <input type="number" name="q${idx}_marks" value="1" min="1" style="width:100%; padding:0.6rem; border:1px solid #bdc3c7; border-radius:4px;">
+            </div>
+        </div>
+
+        <!-- MCQ choices -->
+        <div id="mcq-${idx}" class="type-section">
+            <label style="font-weight:600; color:#2c3e50; font-size:0.9rem;">Choices <small style="color:#7f8c8d;">(check the correct answer(s))</small></label>
+            <div id="choices-${idx}">
+                ${makeChoiceRow(idx, 0, 'Choice A')}
+                ${makeChoiceRow(idx, 1, 'Choice B')}
+                ${makeChoiceRow(idx, 2, 'Choice C')}
+                ${makeChoiceRow(idx, 3, 'Choice D')}
+            </div>
+            <button type="button" class="add-choice-btn" onclick="addChoice(${idx})">+ Add Choice</button>
+        </div>
+
+        <!-- True/False -->
+        <div id="tf-${idx}" class="type-section" style="display:none;">
+            <label style="font-weight:600; color:#2c3e50; font-size:0.9rem;">Correct Answer</label>
+            <select name="q${idx}_tf_correct" style="width:100%; padding:0.6rem; border:1px solid #bdc3c7; border-radius:4px; margin-top:0.4rem;">
+                <option value="True">True</option>
+                <option value="False">False</option>
+            </select>
+        </div>
+
+        <!-- Coding: Test Cases -->
+        <div id="coding-${idx}" class="type-section" style="display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; flex-wrap:wrap; gap:0.5rem;">
+                <label style="font-weight:600; color:#2c3e50; font-size:0.9rem;">Test Cases</label>
+                <span id="tc-marks-total-${idx}" style="font-size:0.82rem; color:#27ae60; font-weight:600;">Total marks: 1</span>
+            </div>
+            <div id="testcases-${idx}">
+                ${makeTestCaseRow(idx, 0)}
+            </div>
+            <div style="display:flex; gap:0.6rem; margin-top:0.6rem; flex-wrap:wrap;">
+                <button type="button" class="add-choice-btn" onclick="addTestCase(${idx})">+ Add Test Case</button>
+                <button type="button" class="add-choice-btn" style="background:#1a6b3a; color:#fff;" onclick="openVerifyModal(${idx})">&#9654; Verify with Code</button>
+            </div>
+            <div class="coding-note">&#128161; <strong>Hidden</strong> test cases are only used for grading — students can see the sample (non-hidden) ones during the exam.</div>
+        </div>
+    `;
+    container.appendChild(div);
+    renumberHeaders();
+}
+
+function makeChoiceRow(qIdx, cIdx, placeholder) {
+    return `<div class="choice-row" id="crow-${qIdx}-${cIdx}">
+        <input type="checkbox" name="q${qIdx}_correct" value="${cIdx}" title="Mark as correct">
+        <input type="text" name="q${qIdx}_choice_text" placeholder="${placeholder}">
+        <button type="button" class="del-choice" onclick="removeChoice('crow-${qIdx}-${cIdx}')" title="Remove">✕</button>
+    </div>`;
+}
+
+const choiceCounts = {};
+function addChoice(qIdx) {
+    if (!choiceCounts[qIdx]) choiceCounts[qIdx] = 4;
+    const cIdx = choiceCounts[qIdx]++;
+    const container = document.getElementById('choices-' + qIdx);
+    const label = String.fromCharCode(65 + cIdx);
+    const temp = document.createElement('div');
+    temp.innerHTML = makeChoiceRow(qIdx, cIdx, 'Choice ' + label);
+    container.appendChild(temp.firstChild);
+}
+
+function removeChoice(rowId) {
+    const el = document.getElementById(rowId);
+    if (el) el.remove();
+}
+
+function removeQuestion(blockId) {
+    const el = document.getElementById(blockId);
+    if (el) el.remove();
+    const container = document.getElementById('questions-container');
+    if (!container.children.length)
+        document.getElementById('empty-hint').style.display = 'block';
+    renumberHeaders();
+}
+
+function renumberHeaders() {
+    document.querySelectorAll('.q-block h4').forEach((h, i) => {
+        h.textContent = 'Question ' + (i + 1);
+    });
+}
+
+function switchType(sel, idx) {
+    const val = sel.value;
+    document.getElementById('mcq-' + idx).style.display    = val === 'mcq' ? 'block' : 'none';
+    document.getElementById('tf-' + idx).style.display     = val === 'true_false' ? 'block' : 'none';
+    document.getElementById('coding-' + idx).style.display = val === 'coding' ? 'block' : 'none';
+    // For coding, marks are auto-computed from test cases — hide the manual field
+    const marksGroup = sel.closest('.q-block').querySelector(`[name="q${idx}_marks"]`)?.closest('.form-group');
+    if (marksGroup) {
+        marksGroup.style.display = val === 'coding' ? 'none' : '';
+    }
+    if (val === 'coding') updateCodingMarksTotal(idx);
+}
+
+function makeTestCaseRow(qIdx, tcIdx) {
+    return `<div class="testcase-row" id="tc-${qIdx}-${tcIdx}">
+        <div style="display:flex; gap:0.75rem; align-items:center; margin-bottom:0.5rem; flex-wrap:wrap;">
+            <strong style="font-size:0.85rem; color:#3d5a80;">Test Case ${tcIdx + 1}</strong>
+            <label style="font-size:0.8rem; display:flex; align-items:center; gap:0.3rem; cursor:pointer;">
+                <input type="checkbox" name="q${qIdx}_tchidden_${tcIdx}" value="1"> Hidden (grading only)
+            </label>
+            <span style="font-size:0.8rem; color:#555;">Marks:</span>
+            <input type="number" name="q${qIdx}_tcmarks_${tcIdx}" value="1" min="0"
+                   onchange="updateCodingMarksTotal(${qIdx})"
+                   style="width:55px; padding:0.25rem 0.4rem; border:1px solid #bdc3c7; border-radius:4px; font-size:0.82rem;">
+            <button type="button" class="del-choice" onclick="removeTestCase('tc-${qIdx}-${tcIdx}', ${qIdx})" title="Remove">&#10005;</button>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.6rem;">
+            <div>
+                <label style="font-size:0.8rem; color:#555; margin-bottom:0.2rem; display:block;">Input (stdin) <span style="color:#aaa;">— leave blank if none</span></label>
+                <textarea name="q${qIdx}_tcinput_${tcIdx}" style="width:100%; min-height:65px; font-family:monospace; font-size:0.82rem; padding:0.45rem; border:1px solid #bdc3c7; border-radius:4px; resize:vertical;" placeholder="e.g. 3 5"></textarea>
+            </div>
+            <div>
+                <label style="font-size:0.8rem; color:#555; margin-bottom:0.2rem; display:block;">Expected Output <span style="color:#e74c3c;">*</span></label>
+                <textarea name="q${qIdx}_tcoutput_${tcIdx}" style="width:100%; min-height:65px; font-family:monospace; font-size:0.82rem; padding:0.45rem; border:1px solid #bdc3c7; border-radius:4px; resize:vertical;" placeholder="e.g. 8"></textarea>
+            </div>
+        </div>
+    </div>`;
+}
+
+const tcCounts = {};
+function addTestCase(qIdx) {
+    if (!tcCounts[qIdx]) tcCounts[qIdx] = 1;
+    const tcIdx = tcCounts[qIdx]++;
+    const container = document.getElementById('testcases-' + qIdx);
+    const temp = document.createElement('div');
+    temp.innerHTML = makeTestCaseRow(qIdx, tcIdx);
+    container.appendChild(temp.firstChild);
+    updateCodingMarksTotal(qIdx);
+}
+
+function removeTestCase(rowId, qIdx) {
+    const el = document.getElementById(rowId);
+    if (el) el.remove();
+    if (qIdx !== undefined) updateCodingMarksTotal(qIdx);
+}
+
+function updateCodingMarksTotal(qIdx) {
+    const tcBlock = document.getElementById('coding-' + qIdx);
+    if (!tcBlock) return;
+    let total = 0;
+    tcBlock.querySelectorAll(`[name^="q${qIdx}_tcmarks_"]`).forEach(inp => {
+        total += parseInt(inp.value) || 0;
+    });
+    const badge = document.getElementById('tc-marks-total-' + qIdx);
+    if (badge) badge.textContent = 'Total marks: ' + total;
+    // Sync the hidden marks input so the backend gets the right value
+    const marksInput = document.querySelector(`[name="q${qIdx}_marks"]`);
+    if (marksInput) marksInput.value = total || 1;
+}
+
+
+// ===================== VERIFY CODING MODAL =====================
+let _verifyQIdx = null;
+const RUN_CODE_URL = "{% url 'run_code' %}";
+const CSRF_TOKEN   = "{{ csrf_token }}";
+
+function openVerifyModal(qIdx) {
+    _verifyQIdx = qIdx;
+    document.getElementById('verify-results').innerHTML = '';
+    document.getElementById('verify-modal').classList.add('show');
+}
+function closeVerifyModal(e) {
+    if (!e || e.target === document.getElementById('verify-modal'))
+        document.getElementById('verify-modal').classList.remove('show');
+}
+
+async function runVerify() {
+    const qIdx = _verifyQIdx;
+    if (qIdx === null) return;
+    const code = document.getElementById('verify-code-area').value.trim();
+    if (!code) { alert('Please paste a C solution first.'); return; }
+
+    // Gather all test cases from the current form block
+    const tcBlock = document.getElementById('testcases-' + qIdx);
+    const tcRows  = tcBlock ? tcBlock.querySelectorAll('.testcase-row') : [];
+    if (!tcRows.length) { alert('No test cases found.'); return; }
+
+    const resultsDiv = document.getElementById('verify-results');
+    resultsDiv.innerHTML = '<p style="color:#7f8c8d; font-size:0.85rem;">Running…</p>';
+
+    const rows = [];
+    tcRows.forEach((row, pos) => {
+        // Extract tcIdx from row id: tc-{qIdx}-{tcIdx}
+        const tcIdx = row.id.split('-').pop();
+        const stdin    = (row.querySelector(`[name="q${qIdx}_tcinput_${tcIdx}"]`) || {}).value || '';
+        const expected = ((row.querySelector(`[name="q${qIdx}_tcoutput_${tcIdx}"]`) || {}).value || '').trim();
+        const hidden   = (row.querySelector(`[name="q${qIdx}_tchidden_${tcIdx}"]`) || {}).checked;
+        const marks    = parseInt((row.querySelector(`[name="q${qIdx}_tcmarks_${tcIdx}"]`) || {}).value) || 1;
+        rows.push({ pos: pos + 1, tcIdx, stdin, expected, hidden, marks });
+    });
+
+    // Run each test case sequentially
+    let html = '<table style="width:100%; border-collapse:collapse; font-size:0.82rem;">';
+    html += '<tr style="background:#f8f9fa;"><th style="padding:0.4rem;text-align:left;">#</th><th style="padding:0.4rem;text-align:left;">Input</th><th style="padding:0.4rem;text-align:left;">Expected</th><th style="padding:0.4rem;text-align:left;">Got</th><th style="padding:0.4rem;">Result</th></tr>';
+    resultsDiv.innerHTML = html + '</table><p style="color:#7f8c8d; font-size:0.82rem; margin-top:0.3rem;">Running test cases…</p>';
+
+    let passed = 0;
+    const allRows = [];
+    for (const tc of rows) {
+        try {
+            const resp = await fetch(RUN_CODE_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN,
+                },
+                body: JSON.stringify({ code, stdin: tc.stdin }),
+            });
+            const data = await resp.json();
+            const got  = (data.stdout || '').trim();
+            const ok   = (data.status_id === 3) && (got === tc.expected);
+            if (ok) passed++;
+            allRows.push({ tc, got, ok, status: data.status, compile: data.compile_output });
+        } catch (err) {
+            allRows.push({ tc, got: '(network error)', ok: false, status: 'Error', compile: '' });
+        }
+    }
+
+    let table = '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;">';
+    table += '<tr style="background:#f8f9fa;"><th style="padding:0.4rem;text-align:left;border-bottom:1px solid #dee2e6;">#</th><th style="padding:0.4rem;text-align:left;border-bottom:1px solid #dee2e6;">Input</th><th style="padding:0.4rem;text-align:left;border-bottom:1px solid #dee2e6;">Expected</th><th style="padding:0.4rem;text-align:left;border-bottom:1px solid #dee2e6;">Got</th><th style="padding:0.4rem;text-align:center;border-bottom:1px solid #dee2e6;">Result</th></tr>';
+    for (const r of allRows) {
+        const rowBg = r.ok ? '#f0fff4' : '#fff5f5';
+        const badge = r.ok
+            ? '<span style="color:#27ae60;font-weight:700;">&#10003; Pass</span>'
+            : `<span style="color:#e74c3c;font-weight:700;">&#10007; Fail</span>`;
+        const inputDisp   = r.tc.stdin   ? '<code>' + escHtml(r.tc.stdin)   + '</code>' : '<span style="color:#aaa;">—</span>';
+        const expectDisp  = r.tc.expected ? '<code>' + escHtml(r.tc.expected) + '</code>' : '<span style="color:#aaa;">—</span>';
+        const gotDisp     = r.ok ? '<code>' + escHtml(r.got) + '</code>' : (r.compile ? '<span style="color:#e74c3c;">[Compile Error]</span>' : '<code style="color:#e74c3c;">' + escHtml(r.got || r.status) + '</code>');
+        table += `<tr style="background:${rowBg}; border-bottom:1px solid #eee;">
+            <td style="padding:0.4rem;">${r.tc.pos}${r.tc.hidden ? ' 🔒' : ' 👁'}</td>
+            <td style="padding:0.4rem;">${inputDisp}</td>
+            <td style="padding:0.4rem;">${expectDisp}</td>
+            <td style="padding:0.4rem;">${gotDisp}</td>
+            <td style="padding:0.4rem;text-align:center;">${badge}</td>
+        </tr>`;
+        if (!r.ok && r.compile) {
+            table += `<tr style="background:#fff5f5;"><td colspan="5" style="padding:0.3rem 0.6rem; font-family:monospace; font-size:0.78rem; color:#c0392b;">${escHtml(r.compile)}</td></tr>`;
+        }
+    }
+    table += '</table>';
+    const summary = `<p style="margin-top:0.5rem; font-weight:600; color:${passed===allRows.length?'#27ae60':'#e74c3c'};">${passed}/${allRows.length} test cases passed.</p>`;
+    resultsDiv.innerHTML = table + summary;
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function addCodingQuestion() {
+    addQuestion();
+    const idx = qCount - 1;
+    // Pre-select 'coding' in the type dropdown
+    const typeSelect = document.querySelector(`[name="q${idx}_type"]`);
+    if (typeSelect) {
+        typeSelect.value = 'coding';
+        switchType(typeSelect, idx);
+    }
+    // Mark the block visually as a coding block
+    const block = document.getElementById('qblock-' + idx);
+    if (block) block.classList.add('coding-block');
+}
+
+// Also mark existing question as coding-block when teacher manually switches type
+const _origSwitchType = switchType;
+switchType = function(sel, idx) {
+    _origSwitchType(sel, idx);
+    const block = document.getElementById('qblock-' + idx);
+    if (block) {
+        if (sel.value === 'coding') block.classList.add('coding-block');
+        else block.classList.remove('coding-block');
+    }
+};
+
+// Start with one blank question
+addQuestion();
+
+// ===================== BULK IMPORT =====================
+function openBulkModal() {
+    document.getElementById('bulk-modal').classList.add('show');
+    document.getElementById('parse-result').textContent = '';
+}
+function closeBulkModal(e) {
+    if (!e || e.target === document.getElementById('bulk-modal'))
+        document.getElementById('bulk-modal').classList.remove('show');
+}
+
+function parseBulkText(raw) {
+    // Split on lines that start with a question number like "1." or "1)"
+    const blocks = raw.trim().split(/\n(?=\s*\d+[.)\s]\s*\S)/);
+    const questions = [];
+
+    for (const block of blocks) {
+        const lines = block.trim().split('\n').map(l => l.trim()).filter(Boolean);
+        if (!lines.length) continue;
+
+        // First line = question text (strip leading number)
+        const qText = lines[0].replace(/^\d+[.)\s]+/, '').trim();
+        if (!qText) continue;
+
+        const choices = [];
+        let correctLabel = null;
+
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i];
+            // Answer key line: "Answer: B", "Ans: b", "Answer) B", "Key: B"
+            const ansMatch = line.match(/^(?:answer|ans(?:wer)?|correct|key)[:\s)]+([A-Da-d])/i);
+            if (ansMatch) { correctLabel = ansMatch[1].toUpperCase(); continue; }
+            // Choice line: "A) text", "A. text", "(A) text", "A text"
+            const choiceMatch = line.match(/^[\[(]?([A-Da-d])[.\])\s]+(.+)/);
+            if (choiceMatch) {
+                choices.push({ label: choiceMatch[1].toUpperCase(), text: choiceMatch[2].trim() });
+            }
+        }
+        if (choices.length >= 2)
+            questions.push({ text: qText, choices, correctLabel });
+    }
+    return questions;
+}
+
+function importBulk() {
+    const raw = document.getElementById('bulk-textarea').value.trim();
+    if (!raw) { document.getElementById('parse-result').innerHTML = '<span style="color:#e74c3c;">Please paste some questions first.</span>'; return; }
+
+    const parsed = parseBulkText(raw);
+    if (!parsed.length) {
+        document.getElementById('parse-result').innerHTML = '<span style="color:#e74c3c;">Could not detect any questions. Check the format hint above.</span>';
+        return;
+    }
+
+    // Remove the initial blank question if it's still empty
+    const container = document.getElementById('questions-container');
+    if (container.children.length === 1) {
+        const ta = container.querySelector('textarea');
+        if (ta && !ta.value.trim()) removeQuestion(container.firstElementChild.id);
+    }
+
+    parsed.forEach(q => {
+        addQuestion();
+        const idx = qCount - 1;
+        // Set question text
+        document.querySelector(`[name="q${idx}_text"]`).value = q.text;
+        // Fill choices
+        const choiceInputs = document.querySelectorAll(`[name="q${idx}_choice_text"]`);
+        const checkboxes   = document.querySelectorAll(`[name="q${idx}_correct"]`);
+        // Add extra choice rows if needed
+        if (q.choices.length > 4) {
+            for (let x = 4; x < q.choices.length; x++) addChoice(idx);
+        }
+        const allInputs = document.querySelectorAll(`[name="q${idx}_choice_text"]`);
+        const allCBs    = document.querySelectorAll(`[name="q${idx}_correct"]`);
+        q.choices.forEach((c, i) => {
+            if (allInputs[i]) allInputs[i].value = c.text;
+            if (allCBs[i] && q.correctLabel === c.label) allCBs[i].checked = true;
+        });
+    });
+
+    document.getElementById('bulk-modal').classList.remove('show');
+    document.getElementById('bulk-textarea').value = '';
+    alert(`✅ ${parsed.length} question(s) imported! Review them below, then click "Save All Questions".`);
+}
+</script>
+{% endblock %}

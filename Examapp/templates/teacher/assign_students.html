@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Assign Students - {{ exam.title }}{% endblock %}
+{% block content %}
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <h2>Assign Students — {{ exam.title }}</h2>
+        <a href="{% url 'teacher_dashboard' %}" class="btn btn-secondary">← Dashboard</a>
+    </div>
+    <hr>
+    {% if success %}
+        <div class="success-msg">{{ success }}</div>
+    {% endif %}
+    {% if error %}
+        <div class="error-msg">{{ error }}</div>
+    {% endif %}
+    <form method="post">
+        {% csrf_token %}
+        <div style="margin-bottom:1rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; font-weight:600;">
+                <input type="checkbox" id="select-all" style="width:auto;" onchange="toggleAll(this)">
+                Select All Students
+            </label>
+            <span style="color:#7f8c8d; font-size:0.9rem;">({{ students|length }} student{{ students|length|pluralize }})</span>
+        </div>
+        {% if students %}
+        <table>
+            <thead>
+                <tr>
+                    <th width="50px">Assign</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in students %}
+                <tr>
+                    <td><input type="checkbox" name="student_ids" value="{{ s.id }}" class="student-cb" style="width:auto;" {% if s.id in assigned_ids %}checked{% endif %}></td>
+                    <td>{{ s.username }}</td>
+                    <td>{{ s.email }}</td>
+                    <td>
+                        {% if s.id in assigned_ids %}
+                            <span class="badge badge-success">Assigned</span>
+                        {% else %}
+                            <span class="badge badge-warning">Not Assigned</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <button type="submit" class="btn btn-success" style="margin-top:1.5rem;">Save Assignments</button>
+        {% else %}
+        <p style="color:#7f8c8d; margin:2rem 0;">No students registered in the system yet.</p>
+        {% endif %}
+    </form>
+</div>
+<script>
+function toggleAll(cb) {
+    document.querySelectorAll('.student-cb').forEach(el => el.checked = cb.checked);
+}
+</script>
+{% endblock %}

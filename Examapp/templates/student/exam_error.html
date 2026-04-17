@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block title %}Exam Error{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; min-height: 60vh;">
+    <div class="card" style="max-width: 500px; text-align: center;">
+        <h2 style="color: #e74c3c; margin-bottom: 1rem;">❌ Unable to Start Exam</h2>
+        <p style="font-size: 1.1rem; color: #7f8c8d; margin-bottom: 2rem;">{{ error }}</p>
+        <a href="{% url 'student_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

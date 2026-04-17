@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}Proctoring Snapshots — {{ student_exam.student.username }}{% endblock %}
+{% block extra_css %}
+<style>
+    .snap-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:1rem; margin-top:1.5rem; }
+    .snap-card { background:#2d3748; border-radius:8px; overflow:hidden; border:2px solid transparent; position:relative; }
+    .snap-card.flagged { border-color:#e74c3c; }
+    .snap-card img { width:100%; display:block; background:#1a1a2e; }
+    .snap-info { padding:0.6rem 0.8rem; font-size:0.78rem; color:#a0aec0; }
+    .snap-info .time { color:#e2e8f0; font-weight:600; }
+    .snap-info .reason { color:#fc8181; margin-top:0.2rem; }
+    .flag-badge { position:absolute; top:6px; right:6px; background:#e74c3c; color:white; font-size:0.65rem; font-weight:700; padding:0.15rem 0.4rem; border-radius:4px; }
+    .stats-row { display:flex; gap:2rem; margin:1rem 0; flex-wrap:wrap; }
+    .stat-box { background:#2d3748; border-radius:8px; padding:0.8rem 1.5rem; text-align:center; }
+    .stat-box .num { font-size:2rem; font-weight:700; color:#63b3ed; }
+    .stat-box .lbl { font-size:0.8rem; color:#a0aec0; }
+    .stat-box.danger .num { color:#fc8181; }
+    .filter-bar { display:flex; gap:0.5rem; margin-bottom:1rem; flex-wrap:wrap; }
+    .filter-btn { border:none; padding:0.4rem 1rem; border-radius:20px; cursor:pointer; font-size:0.85rem; }
+    .filter-btn.active { background:#667eea; color:white; }
+    .filter-btn:not(.active) { background:#2d3748; color:#e2e8f0; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <div>
+            <h2>📷 Proctoring Snapshots</h2>
+            <p style="color:#a0aec0; margin-top:0.3rem;">
+                Student: <strong style="color:#e2e8f0;">{{ student_exam.student.username }}</strong>
+                &nbsp;|&nbsp; Exam: <strong style="color:#e2e8f0;">{{ student_exam.exam.title }}</strong>
+                &nbsp;|&nbsp; ID: <code style="background:#2d3748; padding:0.1rem 0.4rem; border-radius:4px;">{{ student_exam.student.id }}</code>
+            </p>
+        </div>
+        <a href="{% url 'exam_results' student_exam.exam.id %}" class="btn btn-secondary">← Back to Results</a>
+    </div>
+    <hr>
+
+    <!-- Stats -->
+    <div class="stats-row">
+        <div class="stat-box">
+            <div class="num">{{ total }}</div>
+            <div class="lbl">Total Snapshots</div>
+        </div>
+        <div class="stat-box danger">
+            <div class="num">{{ flagged }}</div>
+            <div class="lbl">⚑ Flagged Events</div>
+        </div>
+        <div class="stat-box">
+            <div class="num">{{ student_exam.tab_switch_count }}</div>
+            <div class="lbl">Tab Switches</div>
+        </div>
+        <div class="stat-box {% if student_exam.is_submitted %}{% else %}danger{% endif %}">
+            <div class="num">{% if student_exam.is_submitted %}✅{% else %}⏳{% endif %}</div>
+            <div class="lbl">Submission</div>
+        </div>
+    </div>
+
+    <!-- Filter buttons -->
+    <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterSnaps('all', this)">All ({{ total }})</button>
+        <button class="filter-btn" onclick="filterSnaps('flagged', this)">⚑ Flagged ({{ flagged }})</button>
+        <button class="filter-btn" onclick="filterSnaps('normal', this)">Normal</button>
+    </div>
+
+    {% if snapshots %}
+    <div class="snap-grid" id="snap-grid">
+        {% for snap in snapshots %}
+        <div class="snap-card {% if snap.is_flagged %}flagged{% endif %}" data-flagged="{{ snap.is_flagged|yesno:'true,false' }}">
+            {% if snap.is_flagged %}<div class="flag-badge">⚑ FLAGGED</div>{% endif %}
+            <img src="data:image/jpeg;base64,{{ snap.image_data }}" alt="Snapshot" loading="lazy">
+            <div class="snap-info">
+                <div class="time">{{ snap.captured_at|date:"M d, Y H:i:s" }}</div>
+                <div>Type: {{ snap.get_snapshot_type_display }}</div>
+                {% if snap.flag_reason %}
+                <div class="reason">⚑ {{ snap.flag_reason|title|cut:"_" }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p style="color:#7f8c8d; text-align:center; margin:3rem 0;">No snapshots recorded for this student yet.</p>
+    {% endif %}
+</div>
+
+<script>
+function filterSnaps(type, btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.snap-card').forEach(card => {
+        if (type === 'all') card.style.display = '';
+        else if (type === 'flagged') card.style.display = card.dataset.flagged === 'true' ? '' : 'none';
+        else if (type === 'normal') card.style.display = card.dataset.flagged === 'false' ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

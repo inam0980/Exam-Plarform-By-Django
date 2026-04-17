@@ -1,0 +1,842 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ exam.title }} — Exam</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background:#1a1a2e; color:#eee; user-select:none; }
+        #exam-layout { display:grid; grid-template-columns:260px 1fr; min-height:100vh; }
+
+        /* Sidebar */
+        #sidebar { background:#16213e; padding:1.5rem 1rem; display:flex; flex-direction:column; gap:1rem; border-right:1px solid #0f3460; }
+        #timer-box { background:#0f3460; border-radius:8px; padding:1rem; text-align:center; }
+        #timer-box h3 { font-size:0.85rem; color:#a0aec0; margin-bottom:0.5rem; text-transform:uppercase; letter-spacing:.08em; }
+        #timer { font-size:2.2rem; font-weight:700; color:#63b3ed; letter-spacing:.05em; }
+        #timer.warning { color:#fc8181; animation:blink 1s infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+        #tab-warning-box { background:#742a2a; border-radius:8px; padding:0.75rem; font-size:0.85rem; text-align:center; display:none; }
+        #tab-warning-box span { font-weight:700; font-size:1.1rem; }
+
+        /* Tab switch overlay */
+        #tab-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:9999; align-items:center; justify-content:center; }
+        #tab-overlay.show { display:flex; }
+        #tab-overlay-box { background:#1a1a2e; border:3px solid #e74c3c; border-radius:12px; padding:2.5rem 3rem; text-align:center; max-width:460px; animation:shake .4s; }
+        @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-10px)} 40%,80%{transform:translateX(10px)} }
+        #tab-overlay-box h2 { color:#fc8181; font-size:1.6rem; margin-bottom:0.75rem; }
+        #tab-overlay-box p { color:#e2e8f0; margin-bottom:1rem; line-height:1.6; }
+        .tab-count-display { font-size:3.5rem; font-weight:700; color:#fc8181; margin:0.3rem 0; }
+        .tab-remaining-warn { font-size:1.05rem; font-weight:600; margin-bottom:1.5rem; }
+        .tab-remaining-warn.danger { color:#fc8181; }
+        .tab-remaining-warn.warning { color:#fbd38d; }
+        #tab-overlay-btn { background:#e74c3c; color:white; border:none; padding:0.8rem 2.5rem; border-radius:8px; font-size:1.1rem; cursor:pointer; font-weight:700; }
+        #tab-overlay-btn:hover { background:#c0392b; }
+
+        #question-nav h3 { font-size:0.8rem; color:#a0aec0; text-transform:uppercase; letter-spacing:.08em; margin-bottom:0.5rem; }
+        #question-nav .nav-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; }
+        .qnav-btn { background:#2d3748; border:none; color:#eee; padding:0.4rem; border-radius:4px; cursor:pointer; font-size:0.8rem; transition:background .2s; }
+        .qnav-btn:hover { background:#4a5568; }
+        .qnav-btn.active { background:#667eea; }
+        .qnav-btn.answered { background:#27ae60; }
+        .qnav-btn.active.answered { background:#2ecc71; }
+
+        /* Main content */
+        #main-content { padding:2rem; overflow-y:auto; }
+        #exam-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem; }
+        #exam-header h1 { font-size:1.4rem; }
+        #submit-btn { background:#e74c3c; color:white; border:none; padding:0.75rem 1.5rem; border-radius:6px; font-size:1rem; cursor:pointer; transition:background .2s; }
+        #submit-btn:hover { background:#c0392b; }
+
+        .question-card { background:#16213e; border-radius:8px; padding:1.5rem; margin-bottom:1rem; border:1px solid #2d3748; }
+        .question-card h2 { font-size:1rem; color:#a0aec0; margin-bottom:0.5rem; }
+        .question-card p { font-size:1.05rem; margin-bottom:1rem; line-height:1.5; }
+        .choice-option { display:flex; align-items:center; gap:0.75rem; background:#2d3748; border-radius:6px; padding:0.75rem 1rem; margin-bottom:0.5rem; cursor:pointer; border:2px solid transparent; transition:all .2s; }
+        .choice-option:hover { border-color:#667eea; }
+        .choice-option.selected { border-color:#27ae60; background:#1a3a2a; }
+        .choice-option input[type="radio"] { width:18px; height:18px; cursor:pointer; accent-color:#27ae60; }
+        textarea.short-answer { width:100%; background:#2d3748; border:1px solid #4a5568; color:#eee; border-radius:6px; padding:0.75rem; font-size:1rem; resize:vertical; min-height:120px; font-family:inherit; }
+        textarea.short-answer:focus { outline:none; border-color:#667eea; }
+        .q-nav-buttons { display:flex; gap:1rem; margin-top:1rem; }
+        .q-nav-buttons button { background:#2d3748; color:#eee; border:none; padding:0.6rem 1.2rem; border-radius:6px; cursor:pointer; font-size:0.9rem; transition:background .2s; }
+        .q-nav-buttons button:hover { background:#4a5568; }
+        .marks-badge { display:inline-block; background:#0f3460; color:#63b3ed; border-radius:20px; padding:0.2rem 0.6rem; font-size:0.8rem; margin-left:0.5rem; }
+        #save-status { font-size:0.8rem; color:#68d391; margin-top:0.5rem; min-height:1em; }
+
+        /* Camera preview */
+        #camera-box { background:#0f3460; border-radius:8px; padding:0.6rem; text-align:center; }
+        #camera-box h3 { font-size:0.75rem; color:#a0aec0; text-transform:uppercase; letter-spacing:.08em; margin-bottom:0.4rem; }
+        #cam-video { width:100%; border-radius:6px; background:#000; display:block; max-height:120px; object-fit:cover; }
+        #cam-status { font-size:0.72rem; margin-top:0.3rem; }
+        #cam-status.ok { color:#68d391; }
+        #cam-status.err { color:#fc8181; }
+        #snap-count { font-size:0.72rem; color:#a0aec0; margin-top:0.2rem; }
+        /* Hidden canvas for capture */
+        #snap-canvas { display:none; }
+
+        /* Green monitoring indicator */
+        #monitor-dot {
+            position: fixed;
+            bottom: 18px;
+            right: 18px;
+            z-index: 8888;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0,0,0,0.6);
+            border: 1.5px solid #27ae60;
+            border-radius: 30px;
+            padding: 6px 14px 6px 10px;
+            font-size: 0.78rem;
+            color: #68d391;
+            font-weight: 600;
+            letter-spacing: .04em;
+            pointer-events: none;
+            transition: opacity .4s ease;
+        }
+        #monitor-dot .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #27ae60;
+            flex-shrink: 0;
+            animation: pulse-green 1.4s ease-in-out infinite;
+        }
+        @keyframes pulse-green {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(39,174,96,.7); }
+            50%       { box-shadow: 0 0 0 7px rgba(39,174,96,0); }
+        }
+
+        /* Coding question styles */
+        .code-editor-wrap { border:1px solid #4a5568; border-radius:6px; overflow:hidden; margin-bottom:0.75rem; }
+        .code-editor-toolbar { background:#1a202c; display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0.75rem; font-size:0.8rem; color:#a0aec0; }
+        .code-editor-toolbar span { font-weight:600; }
+        .code-lang-badge { background:#2d3748; padding:0.2rem 0.5rem; border-radius:4px; color:#63b3ed; font-size:0.75rem; }
+        .run-btn { background:#27ae60; color:white; border:none; padding:0.35rem 1rem; border-radius:4px; cursor:pointer; font-size:0.82rem; font-weight:700; transition:background .2s; }
+        .run-btn:hover { background:#219a52; }
+        .run-btn:disabled { background:#4a5568; cursor:not-allowed; }
+        .reset-btn { background:#2d3748; color:#a0aec0; border:none; padding:0.35rem 0.7rem; border-radius:4px; cursor:pointer; font-size:0.8rem; margin-left:0.4rem; }
+        .reset-btn:hover { background:#4a5568; }
+        .CodeMirror { height: 280px; font-size: 0.88rem; line-height: 1.55; }
+        .stdin-wrap { margin-bottom:0.75rem; }
+        .stdin-wrap label { font-size:0.82rem; color:#a0aec0; display:block; margin-bottom:0.3rem; }
+        .stdin-input { width:100%; background:#2d3748; border:1px solid #4a5568; color:#eee; border-radius:4px; padding:0.5rem 0.75rem; font-size:0.82rem; font-family:monospace; resize:vertical; min-height:55px; }
+        .stdin-input:focus { outline:none; border-color:#667eea; }
+        .code-output-box { background:#0d1117; border:1px solid #4a5568; border-radius:6px; padding:0.75rem 1rem; font-family:monospace; font-size:0.85rem; min-height:80px; white-space:pre-wrap; word-break:break-all; }
+        .code-output-box .out-label { font-size:0.75rem; color:#718096; text-transform:uppercase; letter-spacing:.06em; margin-bottom:0.3rem; }
+        .code-output-box .out-text { color:#a8ff78; }
+        .code-output-box .err-text { color:#fc8181; }
+        .code-output-box .compile-text { color:#fbd38d; }
+        .output-status { font-size:0.78rem; margin-top:0.5rem; padding:0.25rem 0.6rem; border-radius:12px; display:inline-block; }
+        .output-status.accepted  { background:#1a3a2a; color:#68d391; }
+        .output-status.error     { background:#3a1a1a; color:#fc8181; }
+        .output-status.waiting   { background:#2d3748; color:#a0aec0; }
+        .sample-cases-table { width:100%; border-collapse:collapse; font-size:0.82rem; margin-bottom:1rem; }
+        .sample-cases-table th { background:#2d3748; color:#a0aec0; padding:0.4rem 0.75rem; text-align:left; font-weight:600; font-size:0.78rem; text-transform:uppercase; }
+        .sample-cases-table td { padding:0.4rem 0.75rem; border-bottom:1px solid #2d3748; font-family:monospace; color:#e2e8f0; vertical-align:top; }
+        .sample-cases-table tr:last-child td { border-bottom:none; }
+        .sample-header { font-size:0.82rem; color:#a0aec0; font-weight:600; margin-bottom:0.35rem; text-transform:uppercase; letter-spacing:.05em; }
+
+        /* ── Coding split-pane ─────────────────────────────── */
+        #main-content.coding-mode { padding:0; display:flex; flex-direction:column; overflow:hidden; height:100vh; }
+        #main-content.coding-mode #exam-header { padding:0.5rem 1.5rem; flex-shrink:0; border-bottom:1px solid #2d3748; margin-bottom:0; }
+        #main-content.coding-mode #question-display { flex:1; overflow:hidden; display:flex; }
+        .coding-split { display:flex; width:100%; height:100%; overflow:hidden; }
+        .coding-left  { width:38%; min-width:180px; max-width:70%; overflow-y:auto; padding:1.25rem 1.5rem; background:#16213e; flex-shrink:0; }
+        .coding-divider { width:6px; background:#2d3748; cursor:col-resize; flex-shrink:0; position:relative; transition:background .15s; user-select:none; }
+        .coding-divider:hover, .coding-divider.dragging { background:#667eea; }
+        .coding-divider::after { content:'⋮'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#718096; font-size:1.1rem; pointer-events:none; }
+        .coding-right { flex:1; overflow-y:auto; padding:1rem 1.25rem; display:flex; flex-direction:column; gap:0.75rem; min-width:250px; background:#1a1a2e; }
+    </style>
+    <!-- CodeMirror (code editor with C syntax highlighting) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+</head>
+<body oncontextmenu="return false;">
+
+<!-- Monitoring active indicator -->
+<div id="monitor-dot"><span class="dot"></span> Monitoring Active</div>
+
+<!-- Hidden CSRF field for AJAX -->
+{% csrf_token %}
+<div id="csrf-holder" data-csrf="{{ csrf_token }}" data-student-exam="{{ student_exam.id }}" data-exam-id="{{ exam.id }}"></div>
+
+<div id="exam-layout">
+    <!-- Sidebar -->
+    <div id="sidebar">
+        <div id="timer-box">
+            <h3>⏱ Time Remaining</h3>
+            <div id="timer">--:--</div>
+        </div>
+
+        <div id="tab-warning-box">
+            ⚠️ Tab switch detected!<br>
+            Count: <span id="tab-count">0</span>/3<br>
+            <small>At 3 switches, exam auto-submits.</small>
+        </div>
+
+        <!-- Camera Preview -->
+        <div id="camera-box">
+            <h3>📷 Proctoring Cam</h3>
+            <video id="cam-video" autoplay muted playsinline></video>
+            <canvas id="snap-canvas" width="480" height="360"></canvas>
+            <div id="cam-status" class="err">Requesting camera...</div>
+            <div id="snap-count">Snapshots: 0</div>
+        </div>
+
+        <div id="question-nav">
+            <h3>Questions</h3>
+            <div class="nav-grid" id="nav-grid"></div>
+        </div>
+
+        <div style="margin-top:auto;">
+            <div id="save-status">Auto-save active</div>
+            <button id="submit-btn" onclick="confirmSubmit()">Submit Exam</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content">
+        <div id="exam-header">
+            <h1>{{ exam.title }}</h1>
+        </div>
+        <div id="question-display"></div>
+    </div>
+</div>
+
+<!-- Fullscreen required overlay -->
+<div id="fs-required" style="display:none;position:fixed;inset:0;background:#0a0a1a;z-index:99999;align-items:center;justify-content:center;flex-direction:column;gap:1.2rem;text-align:center;">
+  <div style="font-size:3rem;">🔒</div>
+  <h2 style="color:#fc8181;font-size:1.6rem;">Fullscreen Required</h2>
+  <p style="color:#e2e8f0;max-width:420px;line-height:1.6;">This exam must run in fullscreen mode.<br>Exiting fullscreen is recorded as a tab switch.</p>
+  <button onclick="enterFullscreen()" style="background:#27ae60;color:white;border:none;padding:0.9rem 2.5rem;border-radius:8px;font-size:1.1rem;cursor:pointer;font-weight:700;">🖥 Enter Fullscreen &amp; Continue</button>
+</div>
+
+<!-- Tab Switch Warning Overlay -->
+<div id="tab-overlay">
+  <div id="tab-overlay-box">
+    <h2>⚠️ Tab Switch Detected!</h2>
+    <p>You left the exam window. This has been recorded.<br>Switching tabs 3 times will <strong style="color:#fc8181;">auto-submit</strong> your exam.</p>
+    <div class="tab-count-display" id="overlay-count">0</div>
+    <div class="tab-remaining-warn" id="overlay-remaining"></div>
+    <button id="tab-overlay-btn" onclick="dismissTabOverlay()">I Understand — Continue Exam</button>
+  </div>
+</div>
+
+<script>
+// ========================= DATA =========================
+const questions = {{ questions_json|safe }};
+const studentExamId = parseInt(document.getElementById('csrf-holder').dataset.studentExam);
+const examId = parseInt(document.getElementById('csrf-holder').dataset.examId);
+const csrfToken = document.getElementById('csrf-holder').dataset.csrf;
+const endTime = new Date({{ end_exam_time|date:"U" }} * 1000);
+const durationSeconds = {{ duration_seconds }};
+
+let currentIndex = 0;
+let answers = {};  // questionId -> {type, value}
+let tabSwitchCount = {{ student_exam.tab_switch_count }};
+let autoSaveInterval = null;
+let timerInterval = null;
+let cmEditor = null;  // CodeMirror instance for current coding question
+
+const C_BOILERPLATE = `#include <stdio.h>
+
+int main() {
+    // Write your C solution here
+
+    return 0;
+}`;
+const RUN_CODE_URL = "{% url 'run_code' %}";
+
+// ========================= INIT =========================
+document.addEventListener('DOMContentLoaded', () => {
+    buildNavGrid();
+    showQuestion(0);
+    startTimer();
+    startAutoSave();
+    disableContextMenu();
+    disableCopyPaste();
+    preventPageRefresh();
+    trackTabVisibility();
+    updateTabWarning();
+    initCamera();
+});
+
+// ========================= NAVIGATION =========================
+function buildNavGrid() {
+    const grid = document.getElementById('nav-grid');
+    grid.innerHTML = '';
+    questions.forEach((q, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'qnav-btn' + (i === 0 ? ' active' : '');
+        btn.id = 'nav-' + i;
+        btn.textContent = i + 1;
+        btn.onclick = () => { saveCurrentAnswer(); showQuestion(i); };
+        grid.appendChild(btn);
+    });
+}
+
+function showQuestion(index) {
+    if (index < 0 || index >= questions.length) return;
+    currentIndex = index;
+    document.querySelectorAll('.qnav-btn').forEach((b, i) => {
+        b.classList.toggle('active', i === index);
+    });
+    const q = questions[index];
+    const display = document.getElementById('question-display');
+    const mainContent = document.getElementById('main-content');
+    const savedAnswer = answers[q.id];
+    cmEditor = null;
+
+    // ── Coding: split-pane layout ──────────────────────────
+    if (q.type === 'coding') {
+        mainContent.classList.add('coding-mode');
+        const savedCode = (savedAnswer && savedAnswer.code) ? savedAnswer.code : C_BOILERPLATE;
+        const savedStdin = (savedAnswer && savedAnswer.stdin) ? savedAnswer.stdin : (q.sample_cases && q.sample_cases[0] ? q.sample_cases[0].stdin : '');
+
+        let leftHtml = '<h2 style="font-size:1rem;color:#a0aec0;margin-bottom:0.6rem;">Question ' + (index+1) + ' of ' + questions.length + ' <span class="marks-badge">' + q.marks + ' mark' + (q.marks !== 1 ? 's' : '') + '</span></h2>';
+        leftHtml += '<p style="font-size:1.05rem;line-height:1.6;margin-bottom:1rem;">' + escapeHtml(q.text) + '</p>';
+        if (q.sample_cases && q.sample_cases.length > 0) {
+            leftHtml += '<div class="sample-header">📋 Sample Test Cases</div>';
+            leftHtml += '<table class="sample-cases-table"><thead><tr><th>#</th><th>Input</th><th>Expected Output</th></tr></thead><tbody>';
+            q.sample_cases.forEach((tc, i) => {
+                leftHtml += '<tr><td>' + (i+1) + '</td><td>' + escapeHtml(tc.stdin || '(none)') + '</td><td>' + escapeHtml(tc.expected) + '</td></tr>';
+            });
+            leftHtml += '</tbody></table>';
+        }
+        leftHtml += '<div class="q-nav-buttons" style="margin-top:1.5rem;">';
+        if (index > 0) leftHtml += '<button onclick="saveCurrentAnswer();showQuestion(' + (index-1) + ')">← Previous</button>';
+        if (index < questions.length-1) leftHtml += '<button onclick="saveCurrentAnswer();showQuestion(' + (index+1) + ')">Next →</button>';
+        leftHtml += '</div>';
+
+        let rightHtml = '<div class="code-editor-wrap">';
+        rightHtml += '<div class="code-editor-toolbar">';
+        rightHtml += '<span>✏️ C Code Editor <span class="code-lang-badge">C (GCC)</span></span>';
+        rightHtml += '<button class="run-btn" id="run-btn-' + q.id + '" onclick="runCode(' + q.id + ')">▶ Run Code</button>';
+        rightHtml += '</div>';
+        rightHtml += '<textarea id="code-ta-' + q.id + '">' + escapeHtml(savedCode) + '</textarea>';
+        rightHtml += '</div>';
+        rightHtml += '<div class="stdin-wrap">';
+        rightHtml += '<label>📥 Custom Input (stdin)</label>';
+        rightHtml += '<textarea class="stdin-input" id="stdin-' + q.id + '">' + escapeHtml(savedStdin) + '</textarea>';
+        rightHtml += '</div>';
+        rightHtml += '<div class="code-output-box" id="code-output-' + q.id + '"><div class="out-label">Output</div><div class="out-text" style="color:#718096;">Press ▶ Run Code to execute</div></div>';
+
+        display.innerHTML =
+            '<div class="coding-split" id="coding-split">' +
+            '<div class="coding-left" id="coding-left">' + leftHtml + '</div>' +
+            '<div class="coding-divider" id="coding-divider" onmousedown="startResize(event)"></div>' +
+            '<div class="coding-right" id="coding-right">' + rightHtml + '</div>' +
+            '</div>';
+
+        const ta = document.getElementById('code-ta-' + q.id);
+        if (ta) {
+            cmEditor = CodeMirror.fromTextArea(ta, {
+                mode: 'text/x-csrc',
+                theme: 'dracula',
+                lineNumbers: true,
+                indentUnit: 4,
+                tabSize: 4,
+                indentWithTabs: false,
+                autofocus: true,
+                extraKeys: { Tab: cm => cm.execCommand('insertSoftTab') },
+            });
+            cmEditor.setSize('100%', Math.max(320, window.innerHeight - 290));
+            cmEditor.on('change', () => {
+                const q = questions[currentIndex];
+                if (!q) return;
+                answers[q.id] = { type: 'code', code: cmEditor.getValue(), stdin: document.getElementById('stdin-' + q.id)?.value || '' };
+                markAnswered(currentIndex);
+            });
+        }
+        return;
+    }
+
+    // ── Non-coding questions ───────────────────────────────
+    mainContent.classList.remove('coding-mode');
+    let html = '<div class="question-card">';
+    html += '<h2>Question ' + (index+1) + ' of ' + questions.length + ' <span class="marks-badge">' + q.marks + ' mark' + (q.marks !== 1 ? 's' : '') + '</span></h2>';
+    html += '<p>' + escapeHtml(q.text) + '</p>';
+
+    if (q.type === 'mcq' || q.type === 'true_false') {
+        q.choices.forEach(c => {
+            const selected = savedAnswer && savedAnswer.choice_id === c.id;
+            html += '<label class="choice-option' + (selected ? ' selected' : '') + '" onclick="selectChoice(this, ' + q.id + ', ' + c.id + ')">';
+            html += '<input type="radio" name="q_' + q.id + '" value="' + c.id + '" ' + (selected ? 'checked' : '') + '>';
+            html += escapeHtml(c.text) + '</label>';
+        });
+    } else {
+        const val = (savedAnswer && savedAnswer.text) ? savedAnswer.text : '';
+        html += '<textarea class="short-answer" id="sa-' + q.id + '" placeholder="Write your answer here..." oninput="saveShortAnswer(' + q.id + ', this.value)">' + escapeHtml(val) + '</textarea>';
+    }
+    html += '<div class="q-nav-buttons">';
+    if (index > 0) html += '<button onclick="navQuestion(-1)">← Previous</button>';
+    if (index < questions.length-1) html += '<button onclick="navQuestion(1)">Next →</button>';
+    html += '</div>';
+    html += '</div>';
+    display.innerHTML = html;
+}
+
+function navQuestion(dir) {
+    saveCurrentAnswer();
+    showQuestion(currentIndex + dir);
+}
+
+function selectChoice(label, qId, choiceId) {
+    document.querySelectorAll('[name="q_' + qId + '"]').forEach(r => {
+        r.closest('.choice-option').classList.remove('selected');
+    });
+    label.classList.add('selected');
+    label.querySelector('input').checked = true;
+    answers[qId] = { type: 'choice', choice_id: choiceId };
+    markAnswered(currentIndex);
+    sendAnswerToServer(qId, choiceId, null);
+}
+
+function saveShortAnswer(qId, text) {
+    answers[qId] = { type: 'short', text: text };
+    if (text.trim()) markAnswered(currentIndex);
+}
+
+function markAnswered(index) {
+    const btn = document.getElementById('nav-' + index);
+    if (btn) btn.classList.add('answered');
+}
+
+function saveCurrentAnswer() {
+    const q = questions[currentIndex];
+    if (!q) return;
+    if (q.type === 'coding') {
+        const code = cmEditor ? cmEditor.getValue() : '';
+        const stdin = document.getElementById('stdin-' + q.id)?.value || '';
+        if (code.trim() && code.trim() !== C_BOILERPLATE.trim()) {
+            answers[q.id] = { type: 'code', code: code, stdin: stdin };
+            markAnswered(currentIndex);
+            sendAnswerToServer(q.id, null, code);
+        }
+    } else if (q.type === 'short_answer') {
+        const ta = document.getElementById('sa-' + q.id);
+        if (ta) {
+            const text = ta.value.trim();
+            if (text) {
+                answers[q.id] = { type: 'short', text: text };
+                markAnswered(currentIndex);
+                sendAnswerToServer(q.id, null, text);
+            }
+        }
+    } else {
+        const ans = answers[q.id];
+        if (ans && ans.choice_id) {
+            sendAnswerToServer(q.id, ans.choice_id, null);
+        }
+    }
+}
+
+// ========================= SERVER COMMUNICATION =========================
+function sendAnswerToServer(questionId, choiceId, writtenAnswer) {
+    const url = '/api/exam/' + studentExamId + '/save-answer/' + questionId + '/';
+    const data = { question_id: questionId };
+    if (choiceId) data.choice_id = choiceId;
+    if (writtenAnswer !== null) data.written_answer = writtenAnswer;
+
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify(data)
+    }).then(r => r.json()).then(() => {
+        document.getElementById('save-status').textContent = 'Saved ✓ ' + new Date().toLocaleTimeString();
+    }).catch(() => {});
+}
+
+function startAutoSave() {
+    autoSaveInterval = setInterval(() => { saveCurrentAnswer(); }, 30000);
+}
+
+// ========================= TIMER =========================
+function startTimer() {
+    function updateTimer() {
+        const now = new Date();
+        let diff = Math.floor((endTime - now) / 1000);
+        if (diff <= 0) {
+            document.getElementById('timer').textContent = '00:00';
+            clearInterval(timerInterval);
+            submitExam(true);
+            return;
+        }
+        const m = Math.floor(diff / 60).toString().padStart(2, '0');
+        const s = (diff % 60).toString().padStart(2, '0');
+        const timerEl = document.getElementById('timer');
+        timerEl.textContent = m + ':' + s;
+        if (diff < 300) timerEl.classList.add('warning');
+        else timerEl.classList.remove('warning');
+    }
+    updateTimer();
+    timerInterval = setInterval(updateTimer, 1000);
+}
+
+// ========================= CODING COMPILER =========================
+function runCode(qId) {
+    if (!cmEditor) return;
+    const code = cmEditor.getValue().trim();
+    if (!code) { alert('Please write some code first.'); return; }
+
+    const stdin = document.getElementById('stdin-' + qId)?.value || '';
+    const btn = document.getElementById('run-btn-' + qId);
+    const outputBox = document.getElementById('code-output-' + qId);
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Running...';
+    outputBox.innerHTML = '<div class="out-label">Output</div><div class="out-text" style="color:#718096; animation:blink 1s infinite;">Compiling & executing via Judge0...</div>';
+
+    fetch(RUN_CODE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ code: code, stdin: stdin })
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.textContent = '▶ Run Code';
+
+        if (data.error) {
+            outputBox.innerHTML = '<div class="out-label">Error</div><div class="err-text">' + escapeHtml(data.error) + '</div>';
+            return;
+        }
+
+        let html = '';
+        const sid = data.status_id;
+        const isOk = sid === 3;
+
+        if (data.compile_output) {
+            html += '<div class="out-label">Compile Error</div><div class="compile-text">' + escapeHtml(data.compile_output) + '</div>';
+        }
+        if (data.stdout) {
+            html += '<div class="out-label" style="margin-top:' + (data.compile_output ? '0.6rem' : '0') + '">Output</div>';
+            html += '<div class="out-text">' + escapeHtml(data.stdout) + '</div>';
+        }
+        if (data.stderr && !data.compile_output) {
+            html += '<div class="out-label" style="margin-top:0.3rem;">Stderr</div><div class="err-text">' + escapeHtml(data.stderr) + '</div>';
+        }
+        if (!data.stdout && !data.compile_output && !data.stderr) {
+            html += '<div class="out-text" style="color:#718096;">(No output)</div>';
+        }
+        const statusClass = isOk ? 'accepted' : 'error';
+        const statusIcon  = isOk ? '✅' : (sid === 6 ? '❌ Compile Error' : (sid === 5 ? '⏱ Time Limit' : '❌'));
+        html += '<span class="output-status ' + statusClass + '">' + statusIcon + ' ' + escapeHtml(data.status) + '</span>';
+        outputBox.innerHTML = html;
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.textContent = '▶ Run Code';
+        outputBox.innerHTML = '<div class="err-text">Network error: ' + escapeHtml(String(err)) + '</div>';
+    });
+}
+
+// ========================= SPLIT PANE RESIZE =========================
+function startResize(e) {
+    e.preventDefault();
+    const divider = document.getElementById('coding-divider');
+    const left    = document.getElementById('coding-left');
+    const split   = document.getElementById('coding-split');
+    if (!divider || !left || !split) return;
+    divider.classList.add('dragging');
+    function onMove(ev) {
+        const rect = split.getBoundingClientRect();
+        let newW = ev.clientX - rect.left;
+        newW = Math.max(180, Math.min(newW, rect.width - 280));
+        left.style.width = newW + 'px';
+        if (cmEditor) cmEditor.refresh();
+    }
+    function onUp() {
+        divider.classList.remove('dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        if (cmEditor) cmEditor.refresh();
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+}
+
+// ========================= CAMERA & PROCTORING SNAPSHOTS =========================
+let snapCount = 0;
+let cameraStream = null;
+let snapInterval = null;
+
+function initCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCamStatus('Camera not supported in this browser', false);
+        return;
+    }
+    // Delay slightly so fullscreen request doesn't conflict with camera permission prompt
+    setTimeout(() => {
+        navigator.mediaDevices.getUserMedia({ video: { width: 480, height: 360, facingMode: 'user' }, audio: false })
+            .then(stream => {
+                cameraStream = stream;
+                const video = document.getElementById('cam-video');
+                video.srcObject = stream;
+                video.play().catch(() => {});
+                setCamStatus('● Live — being recorded', true);
+                // First snapshot after 3s, then every 60s
+                setTimeout(() => captureSnapshot('webcam', ''), 3000);
+                snapInterval = setInterval(() => captureSnapshot('webcam', ''), 60000);
+            })
+            .catch(err => {
+                if (err.name === 'NotAllowedError') {
+                    setCamStatus('⚠️ Camera blocked — allow camera & reload', false);
+                } else if (err.name === 'NotFoundError') {
+                    setCamStatus('⚠️ No camera found on this device', false);
+                } else {
+                    setCamStatus('⚠️ Camera error: ' + err.name, false);
+                }
+                captureSnapshot('webcam', 'camera_denied');
+            });
+    }, 1200);
+}
+
+function setCamStatus(msg, ok) {
+    const el = document.getElementById('cam-status');
+    el.textContent = msg;
+    el.className = ok ? 'ok' : 'err';
+}
+
+function captureSnapshot(type, flagReason) {
+    const video = document.getElementById('cam-video');
+    const canvas = document.getElementById('snap-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // If camera is live, draw from video; else send blank signal with flag
+    if (cameraStream && video.readyState >= 2) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    } else if (!flagReason) {
+        return;  // No camera and no reason to flag — skip
+    } else {
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fc8181';
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Camera not available', canvas.width/2, canvas.height/2);
+    }
+
+    // Compress to JPEG at 60% quality, strip 'data:image/jpeg;base64,' prefix
+    const fullData = canvas.toDataURL('image/jpeg', 0.6);
+    const b64 = fullData.split(',')[1];
+    if (!b64) return;
+
+    fetch('/api/exam/' + studentExamId + '/snapshot/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ type: type, image: b64, flag_reason: flagReason })
+    }).then(r => r.json()).then(() => {
+        snapCount++;
+        document.getElementById('snap-count').textContent = 'Snapshots: ' + snapCount;
+    }).catch(() => {});
+}
+
+// ========================= FULLSCREEN =========================
+function enterFullscreen() {
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+    if (req) req.call(el);
+}
+
+function isFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+}
+
+// ========================= PROCTORING =========================
+function trackTabVisibility() {
+    let tabAway = false;
+
+    function onTabLeft() {
+        if (tabAway) return;
+        if (window._submitting) return;  // ignore blur from confirm() / submit
+        tabAway = true;
+
+        // Hide green dot
+        const dot = document.getElementById('monitor-dot');
+        if (dot) dot.style.opacity = '0';
+
+        tabSwitchCount++;
+        if (tabSwitchCount >= 3) {
+            window._autoSubmitPending = true;
+            clearInterval(timerInterval);
+            clearInterval(autoSaveInterval);
+        }
+
+        fetch('/api/exam/' + studentExamId + '/tab-switch/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({})
+        }).then(r => r.json()).then(data => {
+            tabSwitchCount = data.tab_switch_count || tabSwitchCount;
+            captureSnapshot('webcam', 'tab_switch');
+            if (data.status === 'auto_submit') {
+                window._autoSubmitPending = true;
+                clearInterval(timerInterval);
+                clearInterval(autoSaveInterval);
+                updateTabWarning();
+                showTabOverlay(true);
+            }
+        }).catch(() => {});
+    }
+
+    function onTabReturn() {
+        if (!tabAway) return;
+        tabAway = false;
+
+        // Restore green dot
+        const dot = document.getElementById('monitor-dot');
+        if (dot) dot.style.opacity = '1';
+
+        // Hide the "enter fullscreen" prompt
+        document.getElementById('fs-required').style.display = 'none';
+
+        updateTabWarning();
+        showTabOverlay(!!window._autoSubmitPending);
+    }
+
+    // ── PRIMARY: fullscreenchange ──────────────────────────────────────────
+    // When the student switches tabs the browser FORCES fullscreen off.
+    // This fires as a native browser event — NO JS extension can block it.
+    // This is the only reliable way to defeat "Always Activate Windows".
+    ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(evt => {
+        document.addEventListener(evt, () => {
+            if (!isFullscreen()) {
+                onTabLeft();
+                // Show re-enter fullscreen screen (student must click to continue)
+                document.getElementById('fs-required').style.display = 'flex';
+            } else {
+                onTabReturn();
+            }
+        });
+    });
+
+    // ── SECONDARY: visibilitychange (browser tab switch) ─────────────────
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) onTabLeft(); else onTabReturn();
+    });
+
+    // ── TERTIARY: window blur/focus (app switch + non-fullscreen tab switch) ─
+    // Fires when the browser window loses/gains focus — catches Cmd+Tab,
+    // Alt+Tab, clicking another app, and tab switching when not in fullscreen.
+    window.addEventListener('blur', onTabLeft);
+    window.addEventListener('focus', onTabReturn);
+
+    // Auto-enter fullscreen when exam loads (800ms delay for page to render)
+    setTimeout(() => {
+        if (!isFullscreen()) enterFullscreen();
+    }, 800);
+}
+
+function showTabOverlay(isAutoSubmit) {
+    const overlay = document.getElementById('tab-overlay');
+    const countEl = document.getElementById('overlay-count');
+    const remEl = document.getElementById('overlay-remaining');
+    const btn = document.getElementById('tab-overlay-btn');
+    countEl.textContent = tabSwitchCount + ' / 3';
+    const remaining = 3 - tabSwitchCount;
+
+    if (isAutoSubmit) {
+        remEl.textContent = 'Submitting your exam now...';
+        remEl.className = 'tab-remaining-warn danger';
+        btn.textContent = '⏳ Please wait...';
+        btn.disabled = true;
+        overlay.classList.add('show');
+        // Actually submit the exam to the server
+        submitExam(true);
+    } else {
+        remEl.textContent = remaining === 1
+            ? '⛔ 1 more switch will AUTO-SUBMIT your exam!'
+            : remaining + ' switches remaining before auto-submit';
+        remEl.className = 'tab-remaining-warn ' + (remaining === 1 ? 'danger' : 'warning');
+        btn.textContent = 'I Understand — Continue Exam';
+        btn.disabled = false;
+        btn.onclick = dismissTabOverlay;
+        overlay.classList.add('show');
+    }
+}
+
+function dismissTabOverlay() {
+    document.getElementById('tab-overlay').classList.remove('show');
+}
+
+function updateTabWarning() {
+    const box = document.getElementById('tab-warning-box');
+    const cnt = document.getElementById('tab-count');
+    if (tabSwitchCount > 0) {
+        box.style.display = 'block';
+        cnt.textContent = tabSwitchCount;
+    }
+}
+
+function disableContextMenu() {
+    document.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+function disableCopyPaste() {
+    ['copy', 'cut', 'paste'].forEach(ev =>
+        document.addEventListener(ev, e => e.preventDefault())
+    );
+}
+
+function preventPageRefresh() {
+    window.addEventListener('beforeunload', e => {
+        saveCurrentAnswer();
+        e.preventDefault();
+        e.returnValue = 'Your exam is in progress. Are you sure you want to leave?';
+    });
+}
+
+// ========================= SUBMIT =========================
+function confirmSubmit() {
+    window._submitting = true;
+    if (confirm('Are you sure you want to submit the exam? This action cannot be undone.')) {
+        submitExam(false);
+    } else {
+        window._submitting = false;
+    }
+}
+
+function submitExam(isAuto) {
+    window._submitting = true;
+    saveCurrentAnswer();
+    const resultUrl = '/student/exam/' + studentExamId + '/result/';
+    fetch('/api/exam/' + studentExamId + '/submit/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ auto: isAuto })
+    }).then(r => {
+        if (r.status === 400) {
+            // Exam was already submitted server-side (e.g. auto-submitted by tab-switch handler)
+            clearInterval(timerInterval);
+            clearInterval(autoSaveInterval);
+            window.location.href = resultUrl;
+            return null;
+        }
+        return r.json();
+    }).then(data => {
+        if (!data) return;
+        if (data.status === 'submitted' || data.redirect_url) {
+            clearInterval(timerInterval);
+            clearInterval(autoSaveInterval);
+            window.location.href = data.redirect_url || resultUrl;
+        }
+    }).catch(() => {
+        window.location.href = resultUrl;
+    });
+}
+
+// ========================= UTILS =========================
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(text || ''));
+    return div.innerHTML;
+}
+</script>
+</body>
+</html>

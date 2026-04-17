@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Review Answers - {{ student.username }}{% endblock %}
+{% block content %}
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <h2>Answer Review — {{ student.username }}</h2>
+        <a href="{% url 'exam_results' exam.id %}" class="btn btn-secondary">← Results</a>
+    </div>
+    <p style="color:#7f8c8d;">Exam: {{ exam.title }} | Score: {{ student_exam.obtained_marks }} / {{ exam.total_marks }}</p>
+    <hr>
+    {% for answer in answers %}
+    <div style="background:#f8f9fa; border-radius:6px; padding:1rem; margin-bottom:1rem; border-left:4px solid {% if answer.is_correct %}#27ae60{% else %}#e74c3c{% endif %};">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap;">
+            <strong>Q{{ forloop.counter }}: {{ answer.question.question_text }}</strong>
+            <span class="badge {% if answer.is_correct %}badge-success{% else %}badge-danger{% endif %}">
+                {{ answer.marks_obtained }}/{{ answer.question.marks }} marks
+            </span>
+        </div>
+        <div style="margin-top:0.75rem;">
+            {% if answer.question.question_type == 'short_answer' %}
+                <p><strong>Student Answer:</strong> {{ answer.written_answer|default:"(no answer)" }}</p>
+                <p style="color:#7f8c8d; font-size:0.9rem;"><em>Short answer — manual grading may apply.</em></p>
+            {% elif answer.selected_choice %}
+                <p><strong>Student's Choice:</strong> {{ answer.selected_choice.choice_text }}
+                    {% if answer.selected_choice.is_correct %}
+                        <span style="color:#27ae60;">✓ Correct</span>
+                    {% else %}
+                        <span style="color:#e74c3c;">✗ Wrong</span>
+                    {% endif %}
+                </p>
+                {% for choice in answer.question.choices.all %}
+                    {% if choice.is_correct %}
+                    <p style="color:#27ae60; font-size:0.9rem;"><strong>Correct Answer:</strong> {{ choice.choice_text }}</p>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <p style="color:#7f8c8d;"><em>No answer submitted.</em></p>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <p style="color:#7f8c8d;">No answers found for this student.</p>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}Login - Exam System{% endblock %}
+{% block content %}
+<div class="card" style="max-width:460px; margin:3rem auto;">
+
+    <!-- Role Toggle -->
+    <div style="display:flex; border-radius:10px; overflow:hidden; border:2px solid #667eea; margin-bottom:1.5rem;">
+        <button type="button" id="btn-student"
+            onclick="selectRole('student')"
+            style="flex:1; padding:0.8rem; font-size:1rem; font-weight:600; border:none; cursor:pointer;
+                   background:{% if selected_role == 'student' %}#667eea{% else %}#fff{% endif %};
+                   color:{% if selected_role == 'student' %}#fff{% else %}#667eea{% endif %};">
+            👨‍🎓 Student
+        </button>
+        <button type="button" id="btn-teacher"
+            onclick="selectRole('teacher')"
+            style="flex:1; padding:0.8rem; font-size:1rem; font-weight:600; border:none; cursor:pointer;
+                   background:{% if selected_role == 'teacher' %}#667eea{% else %}#fff{% endif %};
+                   color:{% if selected_role == 'teacher' %}#fff{% else %}#667eea{% endif %};">
+            👩‍🏫 Teacher
+        </button>
+    </div>
+
+    <h2 style="text-align:center; margin-bottom:1rem;">
+        {% if selected_role == 'teacher' %}Teacher Login{% else %}Student Login{% endif %}
+    </h2>
+
+    {% if error %}
+        <div class="error-msg">{{ error }}</div>
+    {% endif %}
+    {% if messages %}
+        {% for message in messages %}
+            <div class="success-msg">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" id="login-form">
+        {% csrf_token %}
+        <input type="hidden" name="role" id="role-input" value="{{ selected_role }}">
+        <div class="form-group">
+            <label for="username" id="username-label">
+                {% if selected_role == 'teacher' %}Username{% else %}Registration Number{% endif %}
+            </label>
+            <input type="text" id="username" name="username" required autofocus
+                   placeholder="{% if selected_role == 'teacher' %}Enter username{% else %}Enter registration number{% endif %}">
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit" class="btn" style="width:100%; margin-top:0.5rem;">Login</button>
+        <div style="text-align:right; margin-top:0.5rem;">
+            <a href="{% url 'forgot_password' %}" style="color:#667eea; font-size:0.88rem;">Forgot Password?</a>
+        </div>
+    </form>
+
+    <div id="signup-link" style="text-align:center; margin-top:1.5rem; color:#7f8c8d;
+        {% if selected_role == 'teacher' %}display:none;{% endif %}">
+        Don't have an account? <a href="{% url 'signup' %}" style="color:#667eea;">Sign Up as Student</a>
+    </div>
+    <div id="teacher-note" style="text-align:center; margin-top:1.5rem; color:#7f8c8d; font-size:0.9rem;
+        {% if selected_role != 'teacher' %}display:none;{% endif %}">
+        Teacher accounts are created by the administrator only.
+    </div>
+</div>
+
+<script>
+function selectRole(role) {
+    document.getElementById('role-input').value = role;
+    var btnStudent = document.getElementById('btn-student');
+    var btnTeacher = document.getElementById('btn-teacher');
+    var signupLink = document.getElementById('signup-link');
+    var teacherNote = document.getElementById('teacher-note');
+    var heading = document.querySelector('h2');
+    var usernameLabel = document.getElementById('username-label');
+    var usernameInput = document.getElementById('username');
+
+    if (role === 'student') {
+        btnStudent.style.background = '#667eea';
+        btnStudent.style.color = '#fff';
+        btnTeacher.style.background = '#fff';
+        btnTeacher.style.color = '#667eea';
+        signupLink.style.display = 'block';
+        teacherNote.style.display = 'none';
+        heading.textContent = 'Student Login';
+        usernameLabel.textContent = 'Registration Number';
+        usernameInput.placeholder = 'Enter registration number';
+    } else {
+        btnTeacher.style.background = '#667eea';
+        btnTeacher.style.color = '#fff';
+        btnStudent.style.background = '#fff';
+        btnStudent.style.color = '#667eea';
+        signupLink.style.display = 'none';
+        teacherNote.style.display = 'block';
+        heading.textContent = 'Teacher Login';
+        usernameLabel.textContent = 'Username';
+        usernameInput.placeholder = 'Enter username';
+    }
+}
+</script>
+{% endblock %}

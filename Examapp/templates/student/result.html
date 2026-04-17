@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Exam Result - {{ exam.title }}{% endblock %}
+{% block content %}
+<div class="card" style="max-width:800px; margin:0 auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <h2>Exam Result</h2>
+        <a href="{% url 'student_dashboard' %}" class="btn btn-secondary">← Dashboard</a>
+    </div>
+    <hr>
+
+    <!-- Result Summary -->
+    <div style="text-align:center; padding:2rem; border-radius:8px; background:{% if student_exam.has_passed %}#d5f5e3{% else %}#fadbd8{% endif %}; margin-bottom:1.5rem;">
+        {% if student_exam.has_passed %}
+            <div style="font-size:3rem;">🎉</div>
+            <h2 style="color:#1e8449; font-size:2rem; margin:0.5rem 0;">PASS</h2>
+        {% else %}
+            <div style="font-size:3rem;">😔</div>
+            <h2 style="color:#c0392b; font-size:2rem; margin:0.5rem 0;">FAIL</h2>
+        {% endif %}
+        <p style="font-size:1.5rem; color:#2c3e50;">
+            Score: <strong>{{ student_exam.obtained_marks }}</strong> / {{ exam.total_marks }}
+            ({{ student_exam.obtained_marks|floatformat:0 }}%)
+        </p>
+        <p style="color:#7f8c8d;">Passing marks: {{ exam.passing_marks }}</p>
+        {% if student_exam.tab_switch_count > 0 %}
+        <p style="color:#e74c3c; margin-top:0.5rem;">⚠️ Tab switches detected: {{ student_exam.tab_switch_count }}</p>
+        {% endif %}
+    </div>
+
+    <!-- Answer Review -->
+    <h3>Your Answers</h3>
+    <div style="margin-top:1rem;">
+        {% for answer in answers %}
+        <div style="background:#f8f9fa; border-radius:6px; padding:1rem; margin-bottom:0.75rem; border-left:4px solid {% if answer.is_correct %}#27ae60{% else %}#e74c3c{% endif %};">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap;">
+                <strong>Q{{ forloop.counter }}: {{ answer.question.question_text }}</strong>
+                <span class="badge {% if answer.is_correct %}badge-success{% else %}badge-danger{% endif %}">
+                    {{ answer.marks_obtained }} / {{ answer.question.marks }}
+                </span>
+            </div>
+            <div style="margin-top:0.5rem; font-size:0.95rem;">
+                {% if answer.question.question_type == 'short_answer' %}
+                    <p><strong>Your answer:</strong> {{ answer.written_answer|default:"(no answer)" }}</p>
+                    <p style="color:#7f8c8d;"><em>Short answer — grading may be reviewed by teacher.</em></p>
+                {% elif answer.selected_choice %}
+                    <p><strong>Your choice:</strong> {{ answer.selected_choice.choice_text }}
+                        {% if answer.is_correct %}<span style="color:#27ae60;"> ✓</span>{% else %}<span style="color:#e74c3c;"> ✗</span>{% endif %}
+                    </p>
+                    {% if not answer.is_correct %}
+                        {% for choice in answer.question.choices.all %}
+                            {% if choice.is_correct %}
+                            <p style="color:#27ae60;"><strong>Correct answer:</strong> {{ choice.choice_text }}</p>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                {% else %}
+                    <p style="color:#7f8c8d;"><em>No answer submitted.</em></p>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <p style="color:#7f8c8d;">No answers recorded.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

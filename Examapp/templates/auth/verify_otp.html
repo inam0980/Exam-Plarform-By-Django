@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Verify OTP - Exam System{% endblock %}
+{% block content %}
+<div class="card" style="max-width:450px; margin:4rem auto;">
+    <div style="text-align:center; margin-bottom:1.5rem;">
+        <div style="font-size:2.5rem;">📩</div>
+        <h2 style="margin:0.3rem 0;">Enter OTP</h2>
+        <p style="color:#7f8c8d; font-size:0.9rem; margin:0;">
+            A 6-digit OTP has been sent to your email. It is valid for <strong>10 minutes</strong>.
+        </p>
+    </div>
+
+    {% if error %}
+        <div class="error-msg">{{ error }}</div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="otp">OTP Code</label>
+            <input type="text" id="otp" name="otp" required autofocus
+                   maxlength="6" pattern="\d{6}"
+                   placeholder="Enter 6-digit OTP"
+                   style="letter-spacing:0.4rem; font-size:1.4rem; text-align:center;">
+        </div>
+        <button type="submit" class="btn" style="width:100%; margin-top:0.5rem;">Verify OTP</button>
+    </form>
+
+    {% if show_resend %}
+    <p style="text-align:center; margin-top:1rem;">
+        <a href="{% url 'forgot_password' %}" style="color:#667eea;">Request a new OTP</a>
+    </p>
+    {% endif %}
+
+    <p style="text-align:center; margin-top:1rem; color:#7f8c8d;">
+        <a href="{% url 'forgot_password' %}" style="color:#95a5a6; font-size:0.88rem;">← Go back</a>
+    </p>
+</div>
+{% endblock %}

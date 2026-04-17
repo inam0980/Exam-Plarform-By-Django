@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block title %}Error{% endblock %}
+
+{% block content %}
+<div style="max-width: 500px; margin: 0 auto; text-align: center;">
+    <div class="card">
+        <h2 style="color: #e74c3c;">❌ Error</h2>
+        <p style="font-size: 1.1rem; color: #7f8c8d; margin: 1.5rem 0;">{{ error }}</p>
+        <a href="{% url 'home' %}" class="btn btn-secondary">Go Home</a>
+    </div>
+</div>
+{% endblock %}

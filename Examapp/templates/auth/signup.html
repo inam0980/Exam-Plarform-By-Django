@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Student Sign Up - Exam System{% endblock %}
+{% block content %}
+<div class="card" style="max-width:500px; margin:3rem auto;">
+    <div style="text-align:center; margin-bottom:1rem;">
+        <div style="font-size:2.5rem;">👨‍🎓</div>
+        <h2 style="margin:0.3rem 0;">Student Registration</h2>
+        <p style="color:#7f8c8d; font-size:0.9rem; margin:0;">Only students can create an account. Teacher accounts are managed by the administrator.</p>
+    </div>
+    {% if error %}
+        <div class="error-msg">{{ error }}</div>
+    {% endif %}
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="role" value="student">
+        <div style="display:flex; gap:1rem;">
+            <div class="form-group" style="flex:1;">
+                <label for="first_name">First Name</label>
+                <input type="text" id="first_name" name="first_name" value="{{ first_name }}" required autofocus>
+            </div>
+            <div class="form-group" style="flex:1;">
+                <label for="last_name">Last Name</label>
+                <input type="text" id="last_name" name="last_name" value="{{ last_name }}" required>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="reg_number">Registration Number</label>
+            <input type="text" id="reg_number" name="reg_number" value="{{ reg_number }}" required placeholder="e.g. 2024-CS-001">
+        </div>
+        <div style="display:flex; gap:1rem;">
+            <div class="form-group" style="flex:1;">
+                <label for="course">Course / Program</label>
+                <select id="course" name="course" required style="width:100%; padding:0.6rem; border:1px solid #bdc3c7; border-radius:4px; background:#fff;">
+                    <option value="" disabled {% if not course %}selected{% endif %}>— Select course —</option>
+                    <option value="BS Computer Science" {% if course == "BS Computer Science" %}selected{% endif %}>BS Computer Science</option>
+                    <option value="BS Software Engineering" {% if course == "BS Software Engineering" %}selected{% endif %}>BS Software Engineering</option>
+                    <option value="BS Information Technology" {% if course == "BS Information Technology" %}selected{% endif %}>BS Information Technology</option>
+                    <option value="BS Artificial Intelligence" {% if course == "BS Artificial Intelligence" %}selected{% endif %}>BS Artificial Intelligence</option>
+                    <option value="BS Data Science" {% if course == "BS Data Science" %}selected{% endif %}>BS Data Science</option>
+                    <option value="BS Cyber Security" {% if course == "BS Cyber Security" %}selected{% endif %}>BS Cyber Security</option>
+                    <option value="Other" {% if course == "Other" %}selected{% endif %}>Other</option>
+                </select>
+            </div>
+            <div class="form-group" style="flex:1;">
+                <label for="section">Section</label>
+                <select id="section" name="section" required style="width:100%; padding:0.6rem; border:1px solid #bdc3c7; border-radius:4px; background:#fff;">
+                    <option value="" disabled {% if not section %}selected{% endif %}>— Select section —</option>
+                    <option value="A" {% if section == "A" %}selected{% endif %}>Section A</option>
+                    <option value="B" {% if section == "B" %}selected{% endif %}>Section B</option>
+                    <option value="C" {% if section == "C" %}selected{% endif %}>Section C</option>
+                    <option value="D" {% if section == "D" %}selected{% endif %}>Section D</option>
+                    <option value="E" {% if section == "E" %}selected{% endif %}>Section E</option>
+                    <option value="F" {% if section == "F" %}selected{% endif %}>Section F</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" name="email" value="{{ email }}" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <div class="form-group">
+            <label for="confirm_password">Confirm Password</label>
+            <input type="password" id="confirm_password" name="confirm_password" required>
+        </div>
+        <button type="submit" class="btn btn-success" style="width:100%; margin-top:0.5rem;">Create Student Account</button>
+    </form>
+    <p style="text-align:center; margin-top:1.5rem; color:#7f8c8d;">
+        Already have an account? <a href="{% url 'login' %}" style="color:#667eea;">Login</a>
+    </p>
+</div>
+{% endblock %}

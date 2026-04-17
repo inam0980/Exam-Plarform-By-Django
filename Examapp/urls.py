@@ -1,0 +1,31 @@
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.home, name='home'),
+    path('signup/', views.signup, name='signup'),
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
+    path('forgot-password/', views.forgot_password, name='forgot_password'),
+    path('verify-otp/', views.verify_otp, name='verify_otp'),
+    path('reset-password/', views.reset_password, name='reset_password'),
+    path('dashboard/', views.dashboard, name='dashboard'),
+    path('profile/', views.profile, name='profile'),
+    path('teacher/dashboard/', views.teacher_dashboard, name='teacher_dashboard'),
+    path('teacher/create-exam/', views.create_exam, name='create_exam'),
+    path('teacher/exam/<int:exam_id>/edit/', views.edit_exam, name='edit_exam'),
+    path('teacher/exam/<int:exam_id>/questions/', views.add_questions, name='add_questions'),
+    path('teacher/exam/<int:exam_id>/assign/', views.assign_students, name='assign_students'),
+    path('teacher/exam/<int:exam_id>/results/', views.exam_results, name='exam_results'),
+    path('teacher/student-exam/<int:student_exam_id>/review/', views.student_answer_review, name='review_answers'),
+    path('student/dashboard/', views.student_dashboard, name='student_dashboard'),
+    path('student/exam/<int:student_exam_id>/start/', views.start_exam, name='start_exam'),
+    path('student/exam/<int:student_exam_id>/result/', views.exam_result, name='exam_result'),
+    path('api/exam/<int:student_exam_id>/save-answer/<int:question_id>/', views.save_answer, name='save_answer'),
+    path('api/exam/<int:student_exam_id>/tab-switch/', views.record_tab_switch, name='record_tab_switch'),
+    path('api/exam/<int:student_exam_id>/submit/', views.submit_exam, name='submit_exam'),
+    path('api/exam/<int:student_exam_id>/time-remaining/', views.get_time_remaining, name='time_remaining'),
+    path('api/exam/<int:student_exam_id>/snapshot/', views.save_snapshot, name='save_snapshot'),
+    path('teacher/student-exam/<int:student_exam_id>/snapshots/', views.student_snapshots, name='student_snapshots'),
+    path('api/code/run/', views.run_code, name='run_code'),
+]

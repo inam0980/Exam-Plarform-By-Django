@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}Student Dashboard{% endblock %}
+{% block extra_css %}
+<style>
+    .countdown { font-size:0.85rem; color:#e67e22; font-weight:600; }
+</style>
+{% endblock %}
+{% block content %}
+<h2 style="color:white; margin-bottom:1.5rem;">Welcome, {{ user.username }}!</h2>
+
+<!-- Available Now (can be started) -->
+{% if available %}
+<div class="card">
+    <h2 style="color:#27ae60;">🟢 Available Now</h2>
+    <table>
+        <thead>
+            <tr><th>Exam</th><th>Duration</th><th>Ends At</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+            {% for se in available %}
+            <tr>
+                <td><strong>{{ se.exam.title }}</strong></td>
+                <td>{{ se.exam.duration_minutes }} min</td>
+                <td>{{ se.exam.end_time|date:"M d, Y H:i" }}</td>
+                <td><a href="{% url 'start_exam' se.id %}" class="btn btn-success">▶ Start Exam</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Upcoming (not started yet) -->
+<div class="card">
+    <h2>📅 Upcoming Exams</h2>
+    {% if upcoming %}
+    <table>
+        <thead>
+            <tr><th>Exam</th><th>Duration</th><th>Starts At</th><th>Ends At</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+            {% for se in upcoming %}
+            <tr>
+                <td><strong>{{ se.exam.title }}</strong></td>
+                <td>{{ se.exam.duration_minutes }} min</td>
+                <td>{{ se.exam.start_time|date:"M d, Y H:i" }}</td>
+                <td>{{ se.exam.end_time|date:"M d, Y H:i" }}</td>
+                <td>
+                    <span class="badge badge-warning countdown" id="cd-{{ se.id }}">Calculating...</span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <!-- Countdown data for JS -->
+    <script>
+    const upcomingExams = [
+        {% for se in upcoming %}
+        { id: {{ se.id }}, start: new Date({{ se.exam.start_time|date:"U" }} * 1000) },
+        {% endfor %}
+    ];
+    function updateCountdowns() {
+        const now = new Date();
+        upcomingExams.forEach(e => {
+            const diff = Math.floor((e.start - now) / 1000);
+            const el = document.getElementById('cd-' + e.id);
+            if (!el) return;
+            if (diff <= 0) {
+                el.textContent = 'Starting now...';
+                el.style.color = '#27ae60';
+                // Reload once per exam — avoids infinite loop if browser clock is ahead of server
+                const key = 'reloaded_' + e.id;
+                if (!sessionStorage.getItem(key)) {
+                    sessionStorage.setItem(key, '1');
+                    setTimeout(() => location.reload(), 3000);
+                }
+                return;
+            }
+            // Clear reload flag while exam is still upcoming (in case of re-visit)
+            sessionStorage.removeItem('reloaded_' + e.id);
+            const h = Math.floor(diff/3600), m = Math.floor((diff%3600)/60), s = diff%60;
+            el.textContent = (h ? h+'h ' : '') + (m ? m+'m ' : '') + s+'s to start';
+        });
+    }
+    updateCountdowns();
+    setInterval(updateCountdowns, 1000);
+    </script>
+    {% else %}
+        <p style="color:#7f8c8d;">No upcoming exams scheduled.</p>
+    {% endif %}
+</div>
+
+<!-- Completed Exams -->
+<div class="card">
+    <h2>✅ Completed Exams</h2>
+    {% if completed %}
+    <table>
+        <thead>
+            <tr><th>Exam</th><th>Score</th><th>Result</th><th>Tab Switches</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+            {% for se in completed %}
+            <tr>
+                <td>{{ se.exam.title }}</td>
+                <td>{{ se.obtained_marks }} / {{ se.exam.total_marks }}</td>
+                <td>
+                    {% if se.has_passed %}
+                        <span class="badge badge-success">PASS</span>
+                    {% else %}
+                        <span class="badge badge-danger">FAIL</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="{% if se.tab_switch_count >= 3 %}badge badge-danger{% elif se.tab_switch_count > 0 %}badge badge-warning{% else %}badge badge-success{% endif %}">
+                        {{ se.tab_switch_count }}
+                    </span>
+                </td>
+                <td><a href="{% url 'exam_result' se.id %}" class="btn btn-secondary" style="padding:0.3rem 0.7rem; font-size:0.85rem;">View Result</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p style="color:#7f8c8d;">No completed exams yet.</p>
+    {% endif %}
+</div>
+{% endblock %}
+

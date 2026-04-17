@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% block title %}My Profile{% endblock %}
+{% block extra_css %}
+<style>
+    .profile-grid { display:grid; grid-template-columns:300px 1fr; gap:1.5rem; align-items:start; }
+    @media(max-width:768px){ .profile-grid { grid-template-columns:1fr; } }
+
+    .avatar-box { text-align:center; padding:2rem 1rem; }
+    .avatar-circle { width:100px; height:100px; border-radius:50%; background:linear-gradient(135deg,#667eea,#764ba2);
+        display:flex; align-items:center; justify-content:center; font-size:2.8rem; margin:0 auto 1rem; color:white; font-weight:700; }
+    .role-badge { display:inline-block; padding:0.3rem 1rem; border-radius:20px; font-size:0.85rem; font-weight:700; margin-bottom:0.5rem; }
+    .role-teacher { background:#fef3c7; color:#d97706; }
+    .role-student { background:#dbeafe; color:#1d4ed8; }
+    .joined-info { color:#7f8c8d; font-size:0.82rem; margin-top:0.4rem; }
+
+    .stat-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:0.75rem; margin-top:1.25rem; }
+    .stat-tile { background:#f8f9fa; border-radius:8px; padding:0.9rem; text-align:center; border:1px solid #ecf0f1; }
+    .stat-tile .val { font-size:1.8rem; font-weight:700; color:#667eea; }
+    .stat-tile .lbl { font-size:0.75rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:.05em; margin-top:0.2rem; }
+    .stat-tile.green .val { color:#27ae60; }
+    .stat-tile.red .val   { color:#e74c3c; }
+    .stat-tile.orange .val{ color:#e67e22; }
+
+    .tabs { display:flex; gap:0; border-bottom:2px solid #ecf0f1; margin-bottom:1.5rem; }
+    .tab-btn { background:none; border:none; padding:0.75rem 1.5rem; cursor:pointer; font-size:0.95rem; font-weight:600;
+        color:#7f8c8d; border-bottom:2px solid transparent; margin-bottom:-2px; transition:all .2s; }
+    .tab-btn.active { color:#667eea; border-bottom-color:#667eea; }
+    .tab-pane { display:none; }
+    .tab-pane.active { display:block; }
+
+    .full-name-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+</style>
+{% endblock %}
+{% block content %}
+
+{% if error %}
+<div class="error-msg">{{ error }}</div>
+{% endif %}
+{% if success %}
+<div class="success-msg">{{ success }}</div>
+{% endif %}
+
+<div class="profile-grid">
+
+    <!-- Left: Avatar + Stats -->
+    <div>
+        <div class="card avatar-box">
+            <div class="avatar-circle">{{ user.username|first|upper }}</div>
+            <h2 style="color:#2c3e50;">{{ user.get_full_name|default:user.username }}</h2>
+            <div>
+                <span class="role-badge {% if role == 'teacher' %}role-teacher{% else %}role-student{% endif %}">
+                    {% if role == 'teacher' %}👨‍🏫 Teacher{% else %}🎓 Student{% endif %}
+                </span>
+            </div>
+            <div class="joined-info">@{{ user.username }}</div>
+            <div class="joined-info">Member since {{ user.date_joined|date:"M Y" }}</div>
+        </div>
+
+        <!-- Stats card -->
+        <div class="card">
+            <h3>📊 {% if role == 'teacher' %}Teaching Stats{% else %}Exam Stats{% endif %}</h3>
+            {% if role == 'teacher' %}
+            <div class="stat-grid">
+                <div class="stat-tile">
+                    <div class="val">{{ stats.total_exams }}</div>
+                    <div class="lbl">Total Exams</div>
+                </div>
+                <div class="stat-tile green">
+                    <div class="val">{{ stats.published }}</div>
+                    <div class="lbl">Published</div>
+                </div>
+                <div class="stat-tile orange">
+                    <div class="val">{{ stats.total_students }}</div>
+                    <div class="lbl">Students</div>
+                </div>
+                <div class="stat-tile">
+                    <div class="val">{{ stats.completed_exams }}</div>
+                    <div class="lbl">Submissions</div>
+                </div>
+            </div>
+            {% else %}
+            <div class="stat-grid">
+                <div class="stat-tile">
+                    <div class="val">{{ stats.total_assigned }}</div>
+                    <div class="lbl">Assigned</div>
+                </div>
+                <div class="stat-tile">
+                    <div class="val">{{ stats.completed }}</div>
+                    <div class="lbl">Completed</div>
+                </div>
+                <div class="stat-tile green">
+                    <div class="val">{{ stats.passed }}</div>
+                    <div class="lbl">Passed</div>
+                </div>
+                <div class="stat-tile red">
+                    <div class="val">{{ stats.failed }}</div>
+                    <div class="lbl">Failed</div>
+                </div>
+            </div>
+            {% if stats.avg_score %}
+            <div style="text-align:center; margin-top:1rem; padding:0.75rem; background:#f0f4ff; border-radius:8px;">
+                <span style="font-size:1.5rem; font-weight:700; color:#667eea;">{{ stats.avg_score }}%</span>
+                <div style="font-size:0.78rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:.05em;">Average Score</div>
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right: Edit Forms -->
+    <div class="card">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('info', this)">✏️ Edit Profile</button>
+            <button class="tab-btn" onclick="switchTab('password', this)">🔒 Change Password</button>
+        </div>
+
+        <!-- Info tab -->
+        <div class="tab-pane active" id="tab-info">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_info">
+                <div class="full-name-row">
+                    <div class="form-group">
+                        <label for="first_name">First Name</label>
+                        <input type="text" id="first_name" name="first_name" value="{{ user.first_name }}" placeholder="First name">
+                    </div>
+                    <div class="form-group">
+                        <label for="last_name">Last Name</label>
+                        <input type="text" id="last_name" name="last_name" value="{{ user.last_name }}" placeholder="Last name">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" value="{{ user.username }}" disabled style="background:#f8f9fa; color:#7f8c8d; cursor:not-allowed;">
+                    <small style="color:#7f8c8d;">Username cannot be changed.</small>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" value="{{ user.email }}" placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <input type="text" value="{% if role == 'teacher' %}Teacher{% else %}Student{% endif %}" disabled style="background:#f8f9fa; color:#7f8c8d; cursor:not-allowed;">
+                </div>
+                <button type="submit" class="btn btn-success" style="width:100%;">💾 Save Changes</button>
+            </form>
+        </div>
+
+        <!-- Password tab -->
+        <div class="tab-pane" id="tab-password">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="change_password">
+                <div class="form-group">
+                    <label for="current_password">Current Password</label>
+                    <input type="password" id="current_password" name="current_password" required placeholder="Enter current password">
+                </div>
+                <div class="form-group">
+                    <label for="new_password">New Password</label>
+                    <input type="password" id="new_password" name="new_password" required placeholder="At least 6 characters" oninput="checkStrength(this.value)">
+                    <div id="pw-strength" style="margin-top:0.4rem; font-size:0.8rem;"></div>
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">Confirm New Password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" required placeholder="Repeat new password">
+                </div>
+                <button type="submit" class="btn btn-danger" style="width:100%;">🔒 Change Password</button>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function switchTab(name, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+}
+
+// Auto-open password tab if there's an error from password form
+{% if error and request.POST.action == 'change_password' %}
+switchTab('password', document.querySelectorAll('.tab-btn')[1]);
+{% endif %}
+
+function checkStrength(val) {
+    const el = document.getElementById('pw-strength');
+    if (!val) { el.textContent = ''; return; }
+    let score = 0;
+    if (val.length >= 6)  score++;
+    if (val.length >= 10) score++;
+    if (/[A-Z]/.test(val)) score++;
+    if (/[0-9]/.test(val)) score++;
+    if (/[^A-Za-z0-9]/.test(val)) score++;
+    const labels = ['', '⚠️ Very weak', '⚠️ Weak', '🟡 Fair', '🟢 Strong', '✅ Very strong'];
+    const colors = ['', '#e74c3c', '#e67e22', '#f1c40f', '#27ae60', '#1e8449'];
+    el.textContent = labels[score] || '';
+    el.style.color = colors[score] || '';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}Home - Exam System{% endblock %}
+{% block content %}
+<div style="text-align:center; max-width:800px; margin:3rem auto;">
+    <h2 style="font-size:2.2rem; margin-bottom:0.5rem;">Welcome to the Proctored Exam System</h2>
+    <p style="color:#7f8c8d; margin-bottom:2.5rem; font-size:1.05rem;">
+        A secure, online examination platform with real-time proctoring.
+    </p>
+
+    <!-- Portal Cards -->
+    <div style="display:flex; gap:2rem; justify-content:center; flex-wrap:wrap; margin-bottom:2.5rem;">
+
+        <!-- Student Portal -->
+        <div class="card" style="flex:1; min-width:260px; max-width:320px; padding:2rem; border-top:4px solid #27ae60;">
+            <div style="font-size:3rem; margin-bottom:0.5rem;">👨‍🎓</div>
+            <h3 style="margin:0 0 0.5rem;">Student Portal</h3>
+            <p style="color:#7f8c8d; font-size:0.9rem; margin-bottom:1.5rem;">
+                Take proctored exams with timer, auto-save, and instant results.
+            </p>
+            <a href="{% url 'login' %}?role=student" class="btn btn-success" style="display:block; margin-bottom:0.75rem;">Login as Student</a>
+            <a href="{% url 'signup' %}" style="color:#27ae60; font-size:0.9rem;">New student? Create account →</a>
+        </div>
+
+        <!-- Teacher Portal -->
+        <div class="card" style="flex:1; min-width:260px; max-width:320px; padding:2rem; border-top:4px solid #667eea;">
+            <div style="font-size:3rem; margin-bottom:0.5rem;">👩‍🏫</div>
+            <h3 style="margin:0 0 0.5rem;">Teacher Portal</h3>
+            <p style="color:#7f8c8d; font-size:0.9rem; margin-bottom:1.5rem;">
+                Create exams, add questions, assign students, and review results.
+            </p>
+            <a href="{% url 'login' %}?role=teacher" class="btn" style="display:block; margin-bottom:0.75rem;">Login as Teacher</a>
+            <p style="color:#95a5a6; font-size:0.82rem; margin:0;">Teacher accounts are created by the administrator only.</p>
+        </div>
+
+    </div>
+
+    <div style="display:flex; gap:2rem; justify-content:center; flex-wrap:wrap;">
+        <div style="flex:1; min-width:160px; text-align:center;">
+            <div style="font-size:1.8rem;">🔒</div>
+            <h4 style="margin:0.4rem 0;">Secure Proctoring</h4>
+            <p style="color:#7f8c8d; font-size:0.85rem;">Tab-switch detection, auto-submit, and copy-paste prevention.</p>
+        </div>
+        <div style="flex:1; min-width:160px; text-align:center;">
+            <div style="font-size:1.8rem;">⏱️</div>
+            <h4 style="margin:0.4rem 0;">Timed Exams</h4>
+            <p style="color:#7f8c8d; font-size:0.85rem;">Automatic countdown with instant submission on timeout.</p>
+        </div>
+        <div style="flex:1; min-width:160px; text-align:center;">
+            <div style="font-size:1.8rem;">📊</div>
+            <h4 style="margin:0.4rem 0;">Instant Results</h4>
+            <p style="color:#7f8c8d; font-size:0.85rem;">View scores and detailed feedback immediately after submission.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
